@@ -6,6 +6,8 @@
 
 **AstroChop** is a Python tool for generating interplanetary porkchop plots. It calculates the characteristic energy ($C_3$) and Time of Flight (TOF) for various launch and arrival dates, specifically focusing on Earth to Mars transfers.
 
+Loosely based on [Gravity Engine](https://nbodyphysics.com/blog/gravity-engine-doc-1-3-2-2-2/demonstrations-2/porkchop-plots-visualize-transfer-delta-v/)
+
 ## Features
 
 - **Lambert Solver**: Implements a Universal Variables Lambert solver to calculate transfer orbits.
