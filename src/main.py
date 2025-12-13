@@ -52,7 +52,7 @@ def main():
     grid.x_axis -= x_mean
     grid.y_axis -= y_mean
 
-    mesh.generate_mesh(z_scale=50.0, morph_type='linear')
+    mesh.generate_mesh(z_scale=50.0, morph_type='log_10')
 
     # Export
     print("Exporting VTP...")

@@ -1,8 +1,9 @@
+import vtk
 import numpy as np
 
 def write_vtp(filename, mesh):
     """
-    Writes the PorkchopMesh to a VTK XML PolyData (.vtp) file.
+    Writes the PorkchopMesh to a VTK XML PolyData (.vtp) file using the vtk library.
 
     Args:
         filename (str): Output filename (should end in .vtp).
@@ -11,66 +12,57 @@ def write_vtp(filename, mesh):
     if mesh.vertices is None or mesh.indices is None:
         raise ValueError("Mesh has not been generated. Call generate_mesh() first.")
 
-    n_points = len(mesh.vertices)
-    n_polys = len(mesh.indices)
+    # 1. Create Points
+    points = vtk.vtkPoints()
+    # vtkPoints expects float data. We can pass the numpy array directly?
+    # vtk.util.numpy_support is best for this.
+    from vtk.util import numpy_support
 
-    # Format data as space-separated strings
-    points_str = "\n".join([f"{v[0]:.6f} {v[1]:.6f} {v[2]:.6f}" for v in mesh.vertices])
+    # Ensure float32 or float64
+    verts_flat = mesh.vertices.astype(np.float32)
+    vtk_points_data = numpy_support.numpy_to_vtk(verts_flat, deep=True, array_type=vtk.VTK_FLOAT)
+    vtk_points_data.SetNumberOfComponents(3)
+    points.SetData(vtk_points_data)
 
-    # Indices: "3 v0 v1 v2" for triangles
-    # But in VTP/XML, we store connectivity and offsets separately.
-    # Connectivity: v0 v1 v2 v3 v4 v5 ...
-    # Offsets: 3 6 9 ...
+    # 2. Create Polygons (Cells)
+    # The indices array is (N, 3). VTK needs a cell array which is [n, id0, id1, ...].
+    # For triangles: [3, v0, v1, v2, 3, v3, v4, v5, ...]
+    n_triangles = len(mesh.indices)
 
-    connectivity = mesh.indices.flatten()
-    connectivity_str = " ".join(map(str, connectivity))
+    # Prepend '3' to each triangle index set
+    # Create column of 3s
+    threes = np.full((n_triangles, 1), 3, dtype=np.int64)
+    # Stack [3, v0, v1, v2]
+    cells_array = np.hstack((threes, mesh.indices))
+    cells_flat = cells_array.flatten().astype(np.int64)
 
-    offsets = np.arange(3, n_polys * 3 + 1, 3)
-    offsets_str = " ".join(map(str, offsets))
+    vtk_cells = vtk.vtkCellArray()
+    vtk_cells_data = numpy_support.numpy_to_vtkIdTypeArray(cells_flat, deep=True)
+    vtk_cells.SetCells(n_triangles, vtk_cells_data)
 
-    # Scalars (C3 or Morphed Value)
-    # We flatten the grid data same way vertices are flattened
-    scalars = mesh.scalars.flatten()
-    scalars_str = " ".join([f"{s:.6f}" for s in scalars])
+    # 3. Create PolyData
+    polydata = vtk.vtkPolyData()
+    polydata.SetPoints(points)
+    polydata.SetPolys(vtk_cells)
 
-    uvs = mesh.uvs.flatten()
-    uvs_str = " ".join([f"{u:.6f}" for u in uvs])
+    # 4. Add Point Data (Scalars)
+    # Morphed Value
+    scalars = mesh.scalars.flatten().astype(np.float32)
+    vtk_scalars = numpy_support.numpy_to_vtk(scalars, deep=True, array_type=vtk.VTK_FLOAT)
+    vtk_scalars.SetName("MorphedValue")
+    polydata.GetPointData().SetScalars(vtk_scalars)
 
-    with open(filename, 'w') as f:
-        f.write('<?xml version="1.0"?>\n')
-        f.write('<VTKFile type="PolyData" version="0.1" byte_order="LittleEndian">\n')
-        f.write('  <PolyData>\n')
-        f.write(f'    <Piece NumberOfPoints="{n_points}" NumberOfPolys="{n_polys}">\n')
+    # UVs (Normalized)
+    uvs = mesh.uvs.flatten().astype(np.float32)
+    vtk_uvs = numpy_support.numpy_to_vtk(uvs, deep=True, array_type=vtk.VTK_FLOAT)
+    vtk_uvs.SetName("NormalizedUV")
+    polydata.GetPointData().AddArray(vtk_uvs)
 
-        # Points
-        f.write('      <Points>\n')
-        f.write('        <DataArray type="Float32" Name="Points" NumberOfComponents="3" format="ascii">\n')
-        f.write(points_str + '\n')
-        f.write('        </DataArray>\n')
-        f.write('      </Points>\n')
+    # 5. Write to File
+    writer = vtk.vtkXMLPolyDataWriter()
+    writer.SetFileName(filename)
+    writer.SetInputData(polydata)
+    writer.SetDataModeToAscii() # Or Binary for compactness
+    writer.Write()
 
-        # Polys
-        f.write('      <Polys>\n')
-        f.write('        <DataArray type="Int32" Name="connectivity" format="ascii">\n')
-        f.write(connectivity_str + '\n')
-        f.write('        </DataArray>\n')
-        f.write('        <DataArray type="Int32" Name="offsets" format="ascii">\n')
-        f.write(offsets_str + '\n')
-        f.write('        </DataArray>\n')
-        f.write('      </Polys>\n')
-
-        # Point Data
-        f.write('      <PointData Scalars="MorphedValue">\n')
-        f.write('        <DataArray type="Float32" Name="MorphedValue" format="ascii">\n')
-        f.write(scalars_str + '\n')
-        f.write('        </DataArray>\n')
-        f.write('        <DataArray type="Float32" Name="NormalizedUV" format="ascii">\n')
-        f.write(uvs_str + '\n')
-        f.write('        </DataArray>\n')
-        f.write('      </PointData>\n')
-
-        f.write('    </Piece>\n')
-        f.write('  </PolyData>\n')
-        f.write('</VTKFile>\n')
-
-    print(f"Mesh saved to {filename}")
+    print(f"Mesh saved to {filename} using vtk library.")
