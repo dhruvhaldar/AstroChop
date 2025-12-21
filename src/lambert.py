@@ -1,4 +1,6 @@
 import numpy as np
+from scipy.optimize import brentq
+from scipy.optimize import root_scalar
 
 def stumpff_c(z):
     if z > 0:
@@ -97,8 +99,6 @@ def lambert(r1_vec, r2_vec, dt, mu, tm=1):
         t = (x**3 * S + A * np.sqrt(y)) / np.sqrt(mu)
         return t - dt
 
-    from scipy.optimize import brentq
-    
     # Find bounds?
     # z can be positive (ellipse) or negative (hyperbola).
     # Lower bound for z is related to parabolic limit?
@@ -123,7 +123,6 @@ def lambert(r1_vec, r2_vec, dt, mu, tm=1):
         # Let's search in a reasonable range [-100, 100] ?
         # Or better yet, define the function and let root solver handle it with a guess.
         
-        from scipy.optimize import root_scalar
         sol = root_scalar(time_of_flight_residual, x0=0, x1=1, bracket=None, method='secant') 
         # Secant might be unstable if we hit y<0.
         # Let's try bracket.

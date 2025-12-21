@@ -86,15 +86,24 @@ def generate_porkchop(launch_dates, arrival_dates, body1='earth', body2='mars'):
     Vinf_arr = np.zeros((n_arrival, n_launch))
     TOF = np.zeros((n_arrival, n_launch))
     
-    # Pre-calculate positions to save time?
-    # Or just loop. Loop is easier to write.
+    # Pre-calculate positions to save time
+    # This optimization avoids re-calculating JDs and ephemeris inside the nested loop
     
-    for i, ld in enumerate(launch_dates):
-        jd1 = jd_from_date(ld)
-        r1, v1_body = get_ephemeris(body1, jd1)
+    # 1. Pre-calculate JDs
+    launch_jds = [jd_from_date(d) for d in launch_dates]
+    arrival_jds = [jd_from_date(d) for d in arrival_dates]
+
+    # 2. Pre-calculate ephemeris states (r, v)
+    # List of (r, v) tuples
+    launch_states = [get_ephemeris(body1, jd) for jd in launch_jds]
+    arrival_states = [get_ephemeris(body2, jd) for jd in arrival_jds]
+
+    for i, _ in enumerate(launch_dates):
+        jd1 = launch_jds[i]
+        r1, v1_body = launch_states[i]
         
-        for j, ad in enumerate(arrival_dates):
-            jd2 = jd_from_date(ad)
+        for j, _ in enumerate(arrival_dates):
+            jd2 = arrival_jds[j]
             
             dt_days = jd2 - jd1
             if dt_days <= 0:
@@ -102,7 +111,8 @@ def generate_porkchop(launch_dates, arrival_dates, body1='earth', body2='mars'):
                 TOF[j, i] = np.nan
                 continue
             
-            r2, v2_body = get_ephemeris(body2, jd2)
+            # Use pre-calculated state
+            r2, v2_body = arrival_states[j]
             
             dt_sec = dt_days * 86400
             
