@@ -175,6 +175,27 @@ def plot_porkchop(launch_dates, arrival_dates, C3, TOF, filename='astrochop.png'
     ax.set_title('Earth-Mars Porkchop Plot')
     ax.set_xlabel('Launch Date')
     ax.set_ylabel('Arrival Date')
+
+    # Palette 🎨: Mark the minimum C3 (Optimal Launch Window)
+    try:
+        min_idx = np.nanargmin(C3)
+        min_indices = np.unravel_index(min_idx, C3.shape)
+        # min_indices is (arrival_idx, launch_idx)
+        best_arrival_idx = min_indices[0]
+        best_launch_idx = min_indices[1]
+
+        min_c3_val = C3[min_indices]
+        best_launch_date = launch_dates[best_launch_idx]
+        best_arrival_date = arrival_dates[best_arrival_idx]
+
+        best_launch_num = mdates.date2num(best_launch_date)
+        best_arrival_num = mdates.date2num(best_arrival_date)
+
+        ax.plot(best_launch_num, best_arrival_num, 'k*', markersize=12, markerfacecolor='gold', label=f'Min C3: {min_c3_val:.2f} $km^2/s^2$')
+        ax.legend(loc='upper right')
+        print(f"Palette: Found Min C3: {min_c3_val:.2f} km^2/s^2 at Launch {best_launch_date.date()} / Arrival {best_arrival_date.date()}")
+    except Exception as e:
+        print(f"Palette: Could not plot min C3 marker: {e}")
     
     plt.savefig(filename)
     print(f"Plot saved to {filename}")
