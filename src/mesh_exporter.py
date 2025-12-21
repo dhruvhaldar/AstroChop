@@ -1,4 +1,5 @@
 import numpy as np
+import os
 
 def write_vtp(filename, mesh):
     """
@@ -7,7 +8,18 @@ def write_vtp(filename, mesh):
     Args:
         filename (str): Output filename (should end in .vtp).
         mesh (PorkchopMesh): The mesh object to export.
+
+    Raises:
+        ValueError: If mesh is not generated or filename has path traversal attempt.
     """
+    # Security Check: Prevent path traversal
+    # Ensure the file is written within the current working directory
+    abs_path = os.path.abspath(filename)
+    cwd = os.getcwd()
+
+    if os.path.commonpath([cwd, abs_path]) != cwd:
+        raise ValueError(f"Security Error: File path '{filename}' is outside the current working directory.")
+
     if mesh.vertices is None or mesh.indices is None:
         raise ValueError("Mesh has not been generated. Call generate_mesh() first.")
 
