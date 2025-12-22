@@ -89,20 +89,28 @@ def generate_porkchop(launch_dates, arrival_dates, body1='earth', body2='mars'):
     # Pre-calculate positions to save time?
     # Or just loop. Loop is easier to write.
     
-    for i, ld in enumerate(launch_dates):
+    # Pre-calculate launch ephemeris
+    launch_data = []
+    for ld in launch_dates:
         jd1 = jd_from_date(ld)
         r1, v1_body = get_ephemeris(body1, jd1)
-        
-        for j, ad in enumerate(arrival_dates):
-            jd2 = jd_from_date(ad)
+        launch_data.append((jd1, r1, v1_body))
+
+    # Pre-calculate arrival ephemeris
+    arrival_data = []
+    for ad in arrival_dates:
+        jd2 = jd_from_date(ad)
+        r2, v2_body = get_ephemeris(body2, jd2)
+        arrival_data.append((jd2, r2, v2_body))
+
+    for i, (jd1, r1, v1_body) in enumerate(launch_data):
+        for j, (jd2, r2, v2_body) in enumerate(arrival_data):
             
             dt_days = jd2 - jd1
             if dt_days <= 0:
                 C3[j, i] = np.nan
                 TOF[j, i] = np.nan
                 continue
-            
-            r2, v2_body = get_ephemeris(body2, jd2)
             
             dt_sec = dt_days * 86400
             
