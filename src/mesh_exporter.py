@@ -11,6 +11,13 @@ def write_vtp(filename, mesh):
     if mesh.vertices is None or mesh.indices is None:
         raise ValueError("Mesh has not been generated. Call generate_mesh() first.")
 
+    # Security: Prevent path traversal and enforce extension
+    if not filename.endswith('.vtp'):
+        raise ValueError("Filename must end with .vtp")
+
+    if '..' in filename:
+        raise ValueError("Path traversal detected in filename")
+
     n_points = len(mesh.vertices)
     n_polys = len(mesh.indices)
 
