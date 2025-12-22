@@ -167,13 +167,23 @@ def plot_porkchop(launch_dates, arrival_dates, C3, TOF, filename='astrochop.png'
     Y_dates = mdates.date2num(np.meshgrid(launch_dates, arrival_dates)[1])
     
     ax.clear()
-    CS = ax.contour(X_dates, Y_dates, C3, levels=levels, colors='blue')
-    ax.clabel(CS, inline=1, fontsize=8, fmt='C3=%1.1f')
     
-    # Plot TOF
+    # Filled contours for C3
+    CSF = ax.contourf(X_dates, Y_dates, C3, levels=levels, cmap='viridis')
+    cbar = fig.colorbar(CSF, ax=ax)
+    cbar.set_label('$C_3$ (km$^2$/s$^2$)')
+
+    # Line contours for C3 (thin, white/dark for contrast)
+    CS = ax.contour(X_dates, Y_dates, C3, levels=levels, colors='white', linewidths=0.5, alpha=0.5)
+    ax.clabel(CS, inline=1, fontsize=8, fmt='%1.1f')
+
+    # Plot TOF (keep dashed red, maybe thicker or different color if needed)
     levels_tof = range(100, 1000, 50)
-    CS2 = ax.contour(X_dates, Y_dates, TOF, levels=levels_tof, colors='red', linestyles='dashed', linewidths=0.5)
+    CS2 = ax.contour(X_dates, Y_dates, TOF, levels=levels_tof, colors='red', linestyles='dashed', linewidths=1.0)
     ax.clabel(CS2, inline=1, fontsize=8, fmt='%d d')
+
+    # Grid
+    ax.grid(True, linestyle=':', alpha=0.6)
 
     ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
     ax.yaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
