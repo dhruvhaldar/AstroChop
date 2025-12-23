@@ -1,3 +1,4 @@
+import sys
 import numpy as np
 import matplotlib.pyplot as plt
 from datetime import datetime, timedelta
@@ -58,7 +59,7 @@ def date_from_jd(jd):
     
     return datetime(year, month, int(day), h, m, int(s))
 
-def generate_porkchop(launch_dates, arrival_dates, body1='earth', body2='mars'):
+def generate_porkchop(launch_dates, arrival_dates, body1='earth', body2='mars', verbose=False):
     """
     Generates data for porkchop plot.
     
@@ -67,6 +68,7 @@ def generate_porkchop(launch_dates, arrival_dates, body1='earth', body2='mars'):
         arrival_dates (list of datetime): Possible arrival dates.
         body1 (str): Departure body.
         body2 (str): Arrival body.
+        verbose (bool): Whether to show a progress bar.
         
     Returns:
         X (np.array): Launch dates (JDs).
@@ -77,88 +79,70 @@ def generate_porkchop(launch_dates, arrival_dates, body1='earth', body2='mars'):
     n_launch = len(launch_dates)
     n_arrival = len(arrival_dates)
     
-    # 1. Prepare vectors for launch and arrival
-    launch_jds = np.array([jd_from_date(d) for d in launch_dates])
-    arrival_jds = np.array([jd_from_date(d) for d in arrival_dates])
+    C3 = np.zeros((n_arrival, n_launch))
+    Vinf_arr = np.zeros((n_arrival, n_launch))
+    TOF = np.zeros((n_arrival, n_launch))
     
-    # Get ephemeris for all dates
-    # We assume get_ephemeris is fast enough or we loop.
-    # Ephemeris calls are usually fast (analytical).
-
-    r1_list = []
-    v1_body_list = []
-    for jd in launch_jds:
-        r, v = get_ephemeris(body1, jd)
-        r1_list.append(r)
-        v1_body_list.append(v)
-
-    r2_list = []
-    v2_body_list = []
-    for jd in arrival_jds:
-        r, v = get_ephemeris(body2, jd)
-        r2_list.append(r)
-        v2_body_list.append(v)
-
-    # Convert to arrays: (N, 3)
-    R1 = np.array(r1_list)
-    V1_body = np.array(v1_body_list)
-
-    R2 = np.array(r2_list)
-    V2_body = np.array(v2_body_list)
-
-    # 2. Broadcast to (N_arrival, N_launch, 3)
-    # R1: (1, N_l, 3)
-    # R2: (N_a, 1, 3)
-    R1_broad = R1[np.newaxis, :, :]
-    R2_broad = R2[:, np.newaxis, :]
-
-    V1_body_broad = V1_body[np.newaxis, :, :]
-    V2_body_broad = V2_body[:, np.newaxis, :]
-
-    # Calculate DT: (N_a, N_l)
-    DT_days = arrival_jds[:, np.newaxis] - launch_jds[np.newaxis, :]
-    DT_sec = DT_days * 86400
-
-    # 3. Filter invalid DT (DT <= 0)
-    # We can mask them or just let lambert handle negative DT (it won't converge or return garbage)
-    # But usually we want to pass valid DT to lambert.
-    # We can pass all, and then post-filter.
-    # Our vectorized lambert expects positive DT.
-
-    valid_mask = DT_days > 0
-
-    # Initialize results
-    C3 = np.full((n_arrival, n_launch), np.nan)
-    Vinf_arr = np.full((n_arrival, n_launch), np.nan)
-    TOF = DT_days
-
-    # If no valid dates, return early
-    if not np.any(valid_mask):
-        return launch_dates, arrival_dates, C3, Vinf_arr, TOF
-
-    # 4. Call Vectorized Lambert
-    # We call it with full arrays. The solver handles element-wise ops.
-    # Where DT <= 0, the solver might produce NaNs or errors.
-    # To be safe, we can clip DT to something positive small number, then mask result.
-    DT_safe = DT_sec.copy()
-    DT_safe[~valid_mask] = 1.0 # Dummy positive value
-
-    v1_trans, v2_trans = lambert(R1_broad, R2_broad, DT_safe, MU_SUN)
-
-    # 5. Compute C3 and Vinf
-    # v_inf_dep = |v1_trans - v1_body|
-    diff_v1 = v1_trans - V1_body_broad
-    v_inf_dep_sq = np.sum(diff_v1**2, axis=-1) # Squared norm
-
-    # v_inf_arr = |v2_body - v2_trans|
-    diff_v2 = V2_body_broad - v2_trans
-    v_inf_arr = np.sqrt(np.sum(diff_v2**2, axis=-1))
-
-    # Apply mask
-    C3 = np.where(valid_mask, v_inf_dep_sq, np.nan)
-    Vinf_arr = np.where(valid_mask, v_inf_arr, np.nan)
-    TOF = np.where(valid_mask, DT_days, np.nan)
+    # Pre-calculate positions to save time?
+    # Or just loop. Loop is easier to write.
     
+    # Pre-calculate launch ephemeris
+    launch_data = []
+    for ld in launch_dates:
+        jd1 = jd_from_date(ld)
+        r1, v1_body = get_ephemeris(body1, jd1)
+        launch_data.append((jd1, r1, v1_body))
+
+    # Pre-calculate arrival ephemeris
+    arrival_data = []
+    for ad in arrival_dates:
+        jd2 = jd_from_date(ad)
+        r2, v2_body = get_ephemeris(body2, jd2)
+        arrival_data.append((jd2, r2, v2_body))
+
+    for i, (jd1, r1, v1_body) in enumerate(launch_data):
+        if verbose:
+            percent = (i / n_launch) * 100
+            bar_length = 30
+            filled_length = int(bar_length * i // n_launch)
+            bar = '█' * filled_length + '-' * (bar_length - filled_length)
+            sys.stdout.write(f'\rProgress: |{bar}| {percent:.1f}%')
+            sys.stdout.flush()
+
+        for j, (jd2, r2, v2_body) in enumerate(arrival_data):
+            
+            dt_days = jd2 - jd1
+            if dt_days <= 0:
+                C3[j, i] = np.nan
+                TOF[j, i] = np.nan
+                continue
+            
+            dt_sec = dt_days * 86400
+            
+            # Solve Lambert
+            try:
+                v1_trans, v2_trans = lambert(r1, r2, dt_sec, MU_SUN)
+                
+                # C3 = v_inf_dep^2 = |v_transfer - v_body|^2
+                v_inf_dep = np.linalg.norm(v1_trans - v1_body)
+                c3_val = v_inf_dep**2
+                
+                # V_inf_arr = |v_body - v_transfer|
+                v_inf_arr = np.linalg.norm(v2_trans - v2_body)
+                
+                C3[j, i] = c3_val
+                Vinf_arr[j, i] = v_inf_arr
+                TOF[j, i] = dt_days
+                
+            except Exception:
+                C3[j, i] = np.nan
+                TOF[j, i] = np.nan
+
+    if verbose:
+        bar = '█' * 30
+        sys.stdout.write(f'\rProgress: |{bar}| 100.0%\n')
+        sys.stdout.flush()
+
     return launch_dates, arrival_dates, C3, Vinf_arr, TOF
 
 def plot_porkchop(launch_dates, arrival_dates, C3, TOF, filename='astrochop.png'):
