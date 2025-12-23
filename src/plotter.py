@@ -11,8 +11,6 @@ def jd_from_date(date):
     """
     # Simple conversion
     # JD = 367*Y - INT(7*(Y+INT((M+9)/12))/4) + INT(275*M/9) + D + 1721013.5 + UT/24
-    # Or just use astropy if available, but we don't have it.
-    # Use standard algorithm.
     
     Y = date.year
     M = date.month
@@ -30,8 +28,6 @@ def date_from_jd(jd):
     """
     Converts Julian Date to datetime object.
     """
-    # Inverse algorithm
-    # Adapted from standard sources
     Z = int(jd + 0.5)
     F = jd + 0.5 - Z
     if Z < 2299161:
@@ -54,7 +50,6 @@ def date_from_jd(jd):
     else:
         year = C - 4715
         
-    # Convert fraction of day to h:m:s
     d_frac = day - int(day)
     h_total = d_frac * 24
     h = int(h_total)
@@ -165,15 +160,6 @@ def plot_porkchop(launch_dates, arrival_dates, C3, TOF, filename='astrochop.png'
     # Plot C3 contours
     CS = ax.contour(X, Y, C3, levels=levels, colors='blue', linewidths=0.5)
     ax.clabel(CS, inline=1, fontsize=8, fmt='%1.1f')
-    
-    # Plot TOF contours
-    # levels_tof = np.linspace(100, 500, 9)
-    # CS2 = ax.contour(X, Y, TOF, levels=levels_tof, colors='red', linewidths=0.5, linestyles='dashed')
-    # ax.clabel(CS2, inline=1, fontsize=8, fmt='%1.0f')
-    
-    # Format axes with dates
-    # We can use matplotlib.dates but let's stick to simple labels for now or raw JDs?
-    # Better to use matplotlib dates.
     
     import matplotlib.dates as mdates
     
