@@ -1,3 +1,4 @@
+import sys
 import numpy as np
 import matplotlib.pyplot as plt
 from datetime import datetime, timedelta
@@ -63,7 +64,7 @@ def date_from_jd(jd):
     
     return datetime(year, month, int(day), h, m, int(s))
 
-def generate_porkchop(launch_dates, arrival_dates, body1='earth', body2='mars'):
+def generate_porkchop(launch_dates, arrival_dates, body1='earth', body2='mars', verbose=False):
     """
     Generates data for porkchop plot.
     
@@ -72,6 +73,7 @@ def generate_porkchop(launch_dates, arrival_dates, body1='earth', body2='mars'):
         arrival_dates (list of datetime): Possible arrival dates.
         body1 (str): Departure body.
         body2 (str): Arrival body.
+        verbose (bool): Whether to show a progress bar.
         
     Returns:
         X (np.array): Launch dates (JDs).
@@ -104,6 +106,14 @@ def generate_porkchop(launch_dates, arrival_dates, body1='earth', body2='mars'):
         arrival_data.append((jd2, r2, v2_body))
 
     for i, (jd1, r1, v1_body) in enumerate(launch_data):
+        if verbose:
+            percent = (i / n_launch) * 100
+            bar_length = 30
+            filled_length = int(bar_length * i // n_launch)
+            bar = '█' * filled_length + '-' * (bar_length - filled_length)
+            sys.stdout.write(f'\rProgress: |{bar}| {percent:.1f}%')
+            sys.stdout.flush()
+
         for j, (jd2, r2, v2_body) in enumerate(arrival_data):
             
             dt_days = jd2 - jd1
@@ -132,6 +142,11 @@ def generate_porkchop(launch_dates, arrival_dates, body1='earth', body2='mars'):
             except Exception:
                 C3[j, i] = np.nan
                 TOF[j, i] = np.nan
+
+    if verbose:
+        bar = '█' * 30
+        sys.stdout.write(f'\rProgress: |{bar}| 100.0%\n')
+        sys.stdout.flush()
 
     return launch_dates, arrival_dates, C3, Vinf_arr, TOF
 

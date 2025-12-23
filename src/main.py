@@ -21,7 +21,7 @@ def main():
     
     print(f"Calculating for {len(launch_dates)} launch dates and {len(arrival_dates)} arrival dates.")
     
-    ld, ad, C3, Vinf, TOF = generate_porkchop(launch_dates, arrival_dates, 'earth', 'mars')
+    ld, ad, C3, Vinf, TOF = generate_porkchop(launch_dates, arrival_dates, 'earth', 'mars', verbose=True)
     
     # Existing plotting
     print("Plotting PNG...")
