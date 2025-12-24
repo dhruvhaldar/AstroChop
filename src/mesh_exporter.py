@@ -12,13 +12,18 @@ def write_vtp(filename, mesh):
     Raises:
         ValueError: If mesh is not generated or filename has path traversal attempt.
     """
-    # Security Check: Prevent path traversal
+    # Security Check: Prevent path traversal and Symlink attacks
     # Ensure the file is written within the current working directory
-    abs_path = os.path.abspath(filename)
+    # Resolve symlinks to find the actual destination
+    real_path = os.path.realpath(filename)
     cwd = os.getcwd()
 
-    if os.path.commonpath([cwd, abs_path]) != cwd:
-        raise ValueError(f"Security Error: File path '{filename}' is outside the current working directory.")
+    if os.path.commonpath([cwd, real_path]) != cwd:
+        raise ValueError(f"Security Error: File path resolves to '{real_path}', which is outside the current working directory.")
+
+    # Also explicitly disallow writing to a symlink
+    if os.path.islink(filename):
+        raise ValueError(f"Security Error: File path '{filename}' is a symbolic link.")
 
     if mesh.vertices is None or mesh.indices is None:
         raise ValueError("Mesh has not been generated. Call generate_mesh() first.")
