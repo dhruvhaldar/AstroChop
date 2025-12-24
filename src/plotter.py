@@ -100,48 +100,64 @@ def generate_porkchop(launch_dates, arrival_dates, body1='earth', body2='mars', 
         r2, v2_body = get_ephemeris(body2, jd2)
         arrival_data.append((jd2, r2, v2_body))
 
-    for i, (jd1, r1, v1_body) in enumerate(launch_data):
-        if verbose:
-            percent = (i / n_launch) * 100
-            bar_length = 30
-            filled_length = int(bar_length * i // n_launch)
-            bar = '█' * filled_length + '-' * (bar_length - filled_length)
-            sys.stdout.write(f'\rProgress: |{bar}| {percent:.1f}%')
-            sys.stdout.flush()
-
-        for j, (jd2, r2, v2_body) in enumerate(arrival_data):
-            
-            dt_days = jd2 - jd1
-            if dt_days <= 0:
-                C3[j, i] = np.nan
-                TOF[j, i] = np.nan
-                continue
-            
-            dt_sec = dt_days * 86400
-            
-            # Solve Lambert
-            try:
-                v1_trans, v2_trans = lambert(r1, r2, dt_sec, MU_SUN)
-                
-                # C3 = v_inf_dep^2 = |v_transfer - v_body|^2
-                v_inf_dep = np.linalg.norm(v1_trans - v1_body)
-                c3_val = v_inf_dep**2
-                
-                # V_inf_arr = |v_body - v_transfer|
-                v_inf_arr = np.linalg.norm(v2_trans - v2_body)
-                
-                C3[j, i] = c3_val
-                Vinf_arr[j, i] = v_inf_arr
-                TOF[j, i] = dt_days
-                
-            except Exception:
-                C3[j, i] = np.nan
-                TOF[j, i] = np.nan
-
+    # Vectorized implementation
     if verbose:
-        bar = '█' * 30
-        sys.stdout.write(f'\rProgress: |{bar}| 100.0%\n')
-        sys.stdout.flush()
+        print("Calculating vectorized solution...")
+
+    # Extract arrays from pre-calculated ephemeris
+    # launch_data: list of (jd, r, v)
+    jd1_arr = np.array([x[0] for x in launch_data])
+    r1_arr = np.array([x[1] for x in launch_data])
+    v1_arr = np.array([x[2] for x in launch_data])
+
+    # arrival_data: list of (jd, r, v)
+    jd2_arr = np.array([x[0] for x in arrival_data])
+    r2_arr = np.array([x[1] for x in arrival_data])
+    v2_arr = np.array([x[2] for x in arrival_data])
+
+    # Broadcast shapes
+    # launch (i): axis 1 -> (1, N)
+    r1_grid = r1_arr[np.newaxis, :, :]  # (1, N, 3)
+    v1_grid = v1_arr[np.newaxis, :, :]  # (1, N, 3)
+    jd1_grid = jd1_arr[np.newaxis, :]   # (1, N)
+
+    # arrival (j): axis 0 -> (M, 1)
+    r2_grid = r2_arr[:, np.newaxis, :]  # (M, 1, 3)
+    v2_grid = v2_arr[:, np.newaxis, :]  # (M, 1, 3)
+    jd2_grid = jd2_arr[:, np.newaxis]   # (M, 1)
+
+    # Time of Flight matrix (M, N)
+    dt_days = jd2_grid - jd1_grid
+    valid_mask = dt_days > 0
+
+    # Prepare inputs for Lambert
+    # We replace invalid dt with a dummy value (1.0) to avoid errors, then mask result
+    dt_sec = dt_days * 86400.0
+    dt_sec_safe = np.where(valid_mask, dt_sec, 1.0)
+
+    # Solve Lambert (vectorized)
+    # r1_grid (1, N, 3) broadcasts with r2_grid (M, 1, 3) -> (M, N, 3)
+    # dt_sec_safe (M, N)
+    # Note: lambert() handles broadcasting automatically
+    v1_trans, v2_trans = lambert(r1_grid, r2_grid, dt_sec_safe, MU_SUN)
+
+    # Calculate C3 and Vinf
+    # v1_trans (M, N, 3) - v1_grid (1, N, 3) -> (M, N, 3)
+    dv1 = v1_trans - v1_grid
+    v_inf_dep = np.linalg.norm(dv1, axis=-1)
+    C3 = v_inf_dep**2
+
+    # v2_trans (M, N, 3) - v2_grid (M, 1, 3) -> (M, N, 3)
+    dv2 = v2_trans - v2_grid
+    Vinf_arr = np.linalg.norm(dv2, axis=-1)
+
+    TOF = dt_days
+
+    # Apply mask to invalidate cases where dt <= 0
+    # Also mask any NaNs that might have come from Lambert (non-convergence)
+    C3[~valid_mask] = np.nan
+    Vinf_arr[~valid_mask] = np.nan
+    TOF[~valid_mask] = np.nan
 
     return launch_dates, arrival_dates, C3, Vinf_arr, TOF
 
