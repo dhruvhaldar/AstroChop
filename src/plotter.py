@@ -1,4 +1,5 @@
 import sys
+import time
 import numpy as np
 import matplotlib.pyplot as plt
 from datetime import datetime, timedelta
@@ -100,13 +101,28 @@ def generate_porkchop(launch_dates, arrival_dates, body1='earth', body2='mars', 
         r2, v2_body = get_ephemeris(body2, jd2)
         arrival_data.append((jd2, r2, v2_body))
 
+    start_time = time.time()
+
     for i, (jd1, r1, v1_body) in enumerate(launch_data):
         if verbose:
             percent = (i / n_launch) * 100
             bar_length = 30
             filled_length = int(bar_length * i // n_launch)
             bar = '█' * filled_length + '-' * (bar_length - filled_length)
-            sys.stdout.write(f'\rProgress: |{bar}| {percent:.1f}%')
+
+            # Calculate ETA
+            elapsed = time.time() - start_time
+            if i > 0 and elapsed > 0:
+                rate = i / elapsed
+                remaining = n_launch - i
+                eta = remaining / rate
+                eta_str = f"{int(eta // 60):02d}:{int(eta % 60):02d}"
+            else:
+                eta_str = "--:--"
+
+            # Pad with spaces to overwrite previous line completely
+            msg = f'Progress: |{bar}| {percent:.1f}% [ETA: {eta_str}]'
+            sys.stdout.write(f'\r{msg:<60}')
             sys.stdout.flush()
 
         for j, (jd2, r2, v2_body) in enumerate(arrival_data):

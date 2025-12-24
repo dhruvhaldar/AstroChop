@@ -1,9 +1,3 @@
-# Palette's Journal
-
-## 2024-05-22 - [Visualization]
-**Learning:** Porkchop plots are traditionally dense with contour lines, making them hard to read without filled colors.
-**Action:** Use `contourf` with a perceptually uniform colormap (like 'viridis') and a colorbar for better readability.
-
-## 2024-10-18 - [CLI Feedback]
-**Learning:** Long-running CLI processes (like trajectory optimization) feel broken without feedback. A simple text progress bar significantly improves confidence.
-**Action:** Implement optional `verbose` modes with text-based progress bars for computationally intensive loops.
+## 2024-05-22 - [CLI Progress Indicators]
+**Learning:** Users running long-duration compute tasks (like orbital mechanics) feel significantly more confident when provided with an ETA (Estimated Time of Arrival) in the progress bar.
+**Action:** When implementing CLI loops that take more than a few seconds, always include an ETA calculation using `time.time()` differences.

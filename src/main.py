@@ -58,19 +58,6 @@ def main():
     print("Exporting VTP...")
     write_vtp('earth_mars_porkchop.vtp', mesh)
 
-    # Test Ray Intersection (Simulate a click in the middle)
-    # Midpoint of centered grid is roughly (0,0)
-    ray_origin = np.array([0.0, 0.0, 1000.0]) # High above
-    ray_dir = np.array([0.0, 0.0, -1.0]) # Straight down
-
-    t, idx, pt = mesh.intersect_ray(ray_origin, ray_dir)
-
-    if idx != -1:
-        val = mesh.scalars.flatten()[mesh.indices[idx][0]]
-        print(f"Ray Hit at {pt}, Triangle {idx}, Value ~{val:.2f}")
-    else:
-        print("Ray Missed")
-
     print("Done.")
 
 if __name__ == "__main__":
