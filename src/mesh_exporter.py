@@ -1,5 +1,6 @@
 import numpy as np
 import os
+import errno
 
 def write_vtp(filename, mesh):
     """
@@ -16,14 +17,10 @@ def write_vtp(filename, mesh):
     # Ensure the file is written within the current working directory
     # Resolve symlinks to find the actual destination
     real_path = os.path.realpath(filename)
-    cwd = os.getcwd()
+    cwd = os.path.realpath(os.getcwd())
 
     if os.path.commonpath([cwd, real_path]) != cwd:
         raise ValueError(f"Security Error: File path resolves to '{real_path}', which is outside the current working directory.")
-
-    # Also explicitly disallow writing to a symlink
-    if os.path.islink(filename):
-        raise ValueError(f"Security Error: File path '{filename}' is a symbolic link.")
 
     if mesh.vertices is None or mesh.indices is None:
         raise ValueError("Mesh has not been generated. Call generate_mesh() first.")
@@ -60,7 +57,23 @@ def write_vtp(filename, mesh):
     uvs = mesh.uvs.flatten()
     uvs_str = " ".join([f"{u:.6f}" for u in uvs])
 
-    with open(filename, 'w') as f:
+    try:
+        # Open file descriptor with O_NOFOLLOW to prevent symlink attacks (TOCTOU)
+        # O_TRUNC to overwrite if exists, O_CREAT to create if not exists
+        flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC
+
+        # O_NOFOLLOW is not available on Windows
+        if hasattr(os, 'O_NOFOLLOW'):
+            flags |= os.O_NOFOLLOW
+
+        # Set mode to 0o666 (rw-rw-rw-) to avoid creating executable files
+        fd = os.open(filename, flags, 0o666)
+    except OSError as e:
+        if hasattr(errno, 'ELOOP') and e.errno == errno.ELOOP:
+            raise ValueError(f"Security Error: File path '{filename}' is a symbolic link.")
+        raise
+
+    with os.fdopen(fd, 'w') as f:
         f.write('<?xml version="1.0"?>\n')
         f.write('<VTKFile type="PolyData" version="0.1" byte_order="LittleEndian">\n')
         f.write('  <PolyData>\n')
