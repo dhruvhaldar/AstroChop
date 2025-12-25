@@ -1,11 +1,13 @@
 import numpy as np
 import warnings
 
-def stumpff_c(z):
+def stumpff_c_s(z):
     """
-    Vectorized Stumpff C function.
+    Vectorized Stumpff C and S functions computed together.
+    Returns (c, s).
     """
     c = np.zeros_like(z, dtype=float)
+    s = np.zeros_like(z, dtype=float)
 
     # Identify regimes
     pos = z > 0
@@ -14,43 +16,31 @@ def stumpff_c(z):
 
     # Positive z
     if np.any(pos):
-        sqrt_z = np.sqrt(z[pos])
-        c[pos] = (1 - np.cos(sqrt_z)) / z[pos]
-
-    # Negative z
-    if np.any(neg):
-        sqrt_mz = np.sqrt(-z[neg])
-        c[neg] = (np.cosh(sqrt_mz) - 1) / (-z[neg])
-
-    # Zero case
-    c[zero] = 0.5
-
-    return c
-
-def stumpff_s(z):
-    """
-    Vectorized Stumpff S function.
-    """
-    s = np.zeros_like(z, dtype=float)
-
-    pos = z > 0
-    neg = z < 0
-    zero = z == 0
-
-    # Positive z
-    if np.any(pos):
-        sqrt_z = np.sqrt(z[pos])
+        z_pos = z[pos]
+        sqrt_z = np.sqrt(z_pos)
+        c[pos] = (1 - np.cos(sqrt_z)) / z_pos
         s[pos] = (sqrt_z - np.sin(sqrt_z)) / (sqrt_z**3)
 
     # Negative z
     if np.any(neg):
-        sqrt_mz = np.sqrt(-z[neg])
+        z_neg = z[neg]
+        sqrt_mz = np.sqrt(-z_neg)
+        c[neg] = (np.cosh(sqrt_mz) - 1) / (-z_neg)
         s[neg] = (np.sinh(sqrt_mz) - sqrt_mz) / (sqrt_mz**3)
 
     # Zero case
-    s[zero] = 1.0/6.0
+    if np.any(zero):
+        c[zero] = 0.5
+        s[zero] = 1.0/6.0
 
-    return s
+    return c, s
+
+# Retain original functions for compatibility if needed, but implementation uses the combined one
+def stumpff_c(z):
+    return stumpff_c_s(z)[0]
+
+def stumpff_s(z):
+    return stumpff_c_s(z)[1]
 
 def lambert(r1_vec, r2_vec, dt, mu, tm=1, tol=1e-5, max_iter=50):
     """
@@ -113,8 +103,7 @@ def lambert(r1_vec, r2_vec, dt, mu, tm=1, tol=1e-5, max_iter=50):
     
     # Helper to compute Time from z
     def compute_t(z_vals):
-        C = stumpff_c(z_vals)
-        S = stumpff_s(z_vals)
+        C, S = stumpff_c_s(z_vals)
         
         # y = r1 + r2 + A * (z*S - 1)/sqrt(C)
         
@@ -174,8 +163,7 @@ def lambert(r1_vec, r2_vec, dt, mu, tm=1, tol=1e-5, max_iter=50):
     z = z1
 
     # Compute v vectors
-    C = stumpff_c(z)
-    S = stumpff_s(z)
+    C, S = stumpff_c_s(z)
     sqrt_C = np.sqrt(C)
     y = r1 + r2 + A * (z * S - 1) / sqrt_C
     
