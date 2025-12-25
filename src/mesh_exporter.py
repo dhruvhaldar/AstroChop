@@ -96,5 +96,3 @@ def write_vtp(filename, mesh):
         f.write('    </Piece>\n')
         f.write('  </PolyData>\n')
         f.write('</VTKFile>\n')
-
-    print(f"Mesh saved to {filename}")

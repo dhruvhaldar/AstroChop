@@ -212,4 +212,3 @@ def plot_porkchop(launch_dates, arrival_dates, C3, TOF, filename='astrochop.png'
     ax.set_ylabel('Arrival Date')
     
     plt.savefig(filename)
-    print(f"Plot saved to {filename}")
