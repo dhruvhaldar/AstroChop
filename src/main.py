@@ -5,7 +5,8 @@ from porkchop_mesh import DataGrid, PorkchopMesh
 from mesh_exporter import write_vtp
 
 def main():
-    print("Generating Earth-Mars Porkchop Plot...")
+    print("\n🎨 Earth-Mars Porkchop Plot Generator")
+    print("------------------------------------")
     
     # Define date range
     # 2005 opportunity (approximate)
@@ -14,22 +15,27 @@ def main():
     
     start_arrival = datetime(2005, 11, 1)
     end_arrival = datetime(2006, 10, 1)
+
+    print(f"📅 Launch Window:  {start_launch.strftime('%Y-%m-%d')} to {end_launch.strftime('%Y-%m-%d')}")
+    print(f"📅 Arrival Window: {start_arrival.strftime('%Y-%m-%d')} to {end_arrival.strftime('%Y-%m-%d')}")
     
     # Generate dates
     launch_dates = [start_launch + timedelta(days=i) for i in range(0, (end_launch - start_launch).days, 5)]
     arrival_dates = [start_arrival + timedelta(days=i) for i in range(0, (end_arrival - start_arrival).days, 5)]
     
-    print(f"Calculating for {len(launch_dates)} launch dates and {len(arrival_dates)} arrival dates.")
+    total_traj = len(launch_dates) * len(arrival_dates)
+    print(f"🚀 Computing {total_traj} trajectories...")
     
-    ld, ad, C3, Vinf, TOF = generate_porkchop(launch_dates, arrival_dates, 'earth', 'mars', verbose=True)
+    ld, ad, C3, Vinf, TOF = generate_porkchop(launch_dates, arrival_dates, 'earth', 'mars', verbose=False)
+    print("✨ Solution calculated.")
     
+    print("\n📊 Generating visualizations...")
+
     # Existing plotting
-    print("Plotting PNG...")
     plot_porkchop(ld, ad, C3, TOF, filename='astrochop.png')
+    print(f"   • Plot saved to: astrochop.png")
 
     # --- New Mesh Generation Logic ---
-    print("Generating Mesh...")
-
     # Convert dates to floats (JDs) for the axes
     x_axis = np.array([jd_from_date(d) for d in ld])
     y_axis = np.array([jd_from_date(d) for d in ad])
@@ -46,7 +52,6 @@ def main():
     # Actually dates are JDs (~2.45e6), so Z needs to be comparable or we need to offset X/Y.
     # JDs are huge. Let's subtract the mean to center the mesh near origin.
 
-    print("Centering coordinates for better mesh visualization...")
     x_mean = np.mean(x_axis)
     y_mean = np.mean(y_axis)
     grid.x_axis -= x_mean
@@ -55,23 +60,10 @@ def main():
     mesh.generate_mesh(z_scale=50.0, morph_type='linear')
 
     # Export
-    print("Exporting VTP...")
     write_vtp('earth_mars_porkchop.vtp', mesh)
+    print(f"   • 3D Mesh saved to: earth_mars_porkchop.vtp")
 
-    # Test Ray Intersection (Simulate a click in the middle)
-    # Midpoint of centered grid is roughly (0,0)
-    ray_origin = np.array([0.0, 0.0, 1000.0]) # High above
-    ray_dir = np.array([0.0, 0.0, -1.0]) # Straight down
-
-    t, idx, pt = mesh.intersect_ray(ray_origin, ray_dir)
-
-    if idx != -1:
-        val = mesh.scalars.flatten()[mesh.indices[idx][0]]
-        print(f"Ray Hit at {pt}, Triangle {idx}, Value ~{val:.2f}")
-    else:
-        print("Ray Missed")
-
-    print("Done.")
+    print("\n✅ Done.\n")
 
 if __name__ == "__main__":
     main()
