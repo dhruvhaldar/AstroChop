@@ -1,26 +1,38 @@
 import numpy as np
 import warnings
 
-def stumpff_c_s(z):
+def stumpff_c_s(z, out_c=None, out_s=None):
     """
     Vectorized Stumpff C and S functions computed together.
     Returns (c, s).
     """
-    c = np.zeros_like(z, dtype=float)
-    s = np.zeros_like(z, dtype=float)
+    if out_c is None:
+        out_c = np.zeros_like(z, dtype=float)
+    if out_s is None:
+        out_s = np.zeros_like(z, dtype=float)
+
+    c = out_c
+    s = out_s
 
     # Identify regimes
     pos = z > 0
-    neg = z < 0
-    zero = z == 0
 
-    # Positive z
+    # Positive z (Most common case for Elliptic transfers)
     if np.any(pos):
         z_pos = z[pos]
         sqrt_z = np.sqrt(z_pos)
         c[pos] = (1 - np.cos(sqrt_z)) / z_pos
         s[pos] = (sqrt_z - np.sin(sqrt_z)) / (sqrt_z**3)
 
+    # Optimization: if all positive, skip other checks
+    # Use reduction to check if all are positive (ignoring NaNs if any)
+    # If z has NaNs, pos is False for them.
+    # We proceed to neg/zero only if needed.
+    # Note: np.sum() works for both arrays and scalars.
+    if np.sum(pos) == np.size(pos):
+        return c, s
+
+    neg = z < 0
     # Negative z
     if np.any(neg):
         z_neg = z[neg]
@@ -28,7 +40,10 @@ def stumpff_c_s(z):
         c[neg] = (np.cosh(sqrt_mz) - 1) / (-z_neg)
         s[neg] = (np.sinh(sqrt_mz) - sqrt_mz) / (sqrt_mz**3)
 
-    # Zero case
+    # Zero case (remaining)
+    # We can infer zero if not pos and not neg?
+    # But NaNs complicate this. Explicit check is safer.
+    zero = z == 0
     if np.any(zero):
         c[zero] = 0.5
         s[zero] = 1.0/6.0
@@ -101,9 +116,15 @@ def lambert(r1_vec, r2_vec, dt, mu, tm=1, tol=1e-5, max_iter=50):
     z0 = np.zeros_like(dt, dtype=float)
     z1 = np.ones_like(dt, dtype=float) # Guess z=1
     
+    # Pre-allocate buffers for C and S to reuse memory in loop
+    C_buff = np.zeros_like(dt, dtype=float)
+    S_buff = np.zeros_like(dt, dtype=float)
+
     # Helper to compute Time from z
     def compute_t(z_vals):
-        C, S = stumpff_c_s(z_vals)
+        stumpff_c_s(z_vals, out_c=C_buff, out_s=S_buff)
+        C = C_buff
+        S = S_buff
         
         # y = r1 + r2 + A * (z*S - 1)/sqrt(C)
         
