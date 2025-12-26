@@ -5,6 +5,10 @@ from datetime import datetime, timedelta
 from lambert import lambert
 from ephemeris import get_ephemeris, MU_SUN
 
+# Security: Limit maximum grid size to prevent memory exhaustion (DoS)
+# 25,000,000 points * 8 bytes/double * 3 arrays = ~600 MB raw + overhead
+MAX_GRID_SIZE = 25_000_000
+
 def jd_from_date(date):
     """
     Converts datetime object to Julian Date.
@@ -79,6 +83,10 @@ def generate_porkchop(launch_dates, arrival_dates, body1='earth', body2='mars', 
     n_launch = len(launch_dates)
     n_arrival = len(arrival_dates)
     
+    # Security Enhancement: Resource Exhaustion Protection
+    if n_launch * n_arrival > MAX_GRID_SIZE:
+        raise ValueError(f"Grid size too large: {n_launch}x{n_arrival} = {n_launch*n_arrival} points. Limit is {MAX_GRID_SIZE}.")
+
     C3 = np.zeros((n_arrival, n_launch))
     Vinf_arr = np.zeros((n_arrival, n_launch))
     TOF = np.zeros((n_arrival, n_launch))
