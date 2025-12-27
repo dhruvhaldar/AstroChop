@@ -28,6 +28,25 @@ def main():
     
     ld, ad, C3, Vinf, TOF = generate_porkchop(launch_dates, arrival_dates, 'earth', 'mars', verbose=False)
     print("✨ Solution calculated.")
+
+    # Find optimal transfer (minimum C3)
+    try:
+        min_c3_idx = np.nanargmin(C3)
+        # Convert flat index to 2D index
+        arr_idx, launch_idx = np.unravel_index(min_c3_idx, C3.shape)
+
+        opt_launch = ld[launch_idx]
+        opt_arrival = ad[arr_idx]
+        opt_c3 = C3[arr_idx, launch_idx]
+        opt_tof = TOF[arr_idx, launch_idx]
+
+        print(f"\n🏆 Optimal Transfer Found:")
+        print(f"   • Launch Date:  {opt_launch.strftime('%Y-%m-%d')}")
+        print(f"   • Arrival Date: {opt_arrival.strftime('%Y-%m-%d')}")
+        print(f"   • C3 Energy:    {opt_c3:.2f} km²/s²")
+        print(f"   • Duration:     {opt_tof:.1f} days")
+    except ValueError:
+        print("\n⚠️  No valid trajectories found in this window.")
     
     print("\n📊 Generating visualizations...")
 
