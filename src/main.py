@@ -28,6 +28,29 @@ def main():
     
     ld, ad, C3, Vinf, TOF = generate_porkchop(launch_dates, arrival_dates, 'earth', 'mars', verbose=False)
     print("✨ Solution calculated.")
+
+    # Find and display the optimal transfer (lowest C3)
+    try:
+        min_idx = np.nanargmin(C3)
+        unraveled = np.unravel_index(min_idx, C3.shape)
+
+        # C3 is (n_arrival, n_launch) -> (row, col)
+        opt_arrival_idx = unraveled[0]
+        opt_launch_idx = unraveled[1]
+
+        opt_launch_date = ld[opt_launch_idx]
+        opt_arrival_date = ad[opt_arrival_idx]
+        opt_c3 = C3[unraveled]
+        opt_tof = TOF[unraveled]
+
+        print(f"\n🏆 Optimal Transfer Found:")
+        print(f"   • Launch:  {opt_launch_date.strftime('%Y-%m-%d')}")
+        print(f"   • Arrival: {opt_arrival_date.strftime('%Y-%m-%d')} (TOF: {opt_tof:.1f} days)")
+        print(f"   • Energy:  {opt_c3:.2f} km²/s² (C3)")
+
+    except ValueError:
+        # np.nanargmin raises ValueError if all values are NaN
+        print("\n⚠️ No valid transfer window found in this range.")
     
     print("\n📊 Generating visualizations...")
 
