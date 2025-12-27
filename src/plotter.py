@@ -1,9 +1,12 @@
 import sys
+import os
 import numpy as np
 import matplotlib.pyplot as plt
 from datetime import datetime, timedelta
 from lambert import lambert
 from ephemeris import get_ephemeris, MU_SUN
+
+MAX_GRID_SIZE = 25_000_000  # Protection against Memory Exhaustion (DoS)
 
 def jd_from_date(date):
     """
@@ -79,6 +82,10 @@ def generate_porkchop(launch_dates, arrival_dates, body1='earth', body2='mars', 
     n_launch = len(launch_dates)
     n_arrival = len(arrival_dates)
     
+    # Security Check: Prevent Memory Exhaustion / DoS
+    if n_launch * n_arrival > MAX_GRID_SIZE:
+        raise ValueError(f"Grid size {n_launch}x{n_arrival} ({n_launch*n_arrival}) exceeds maximum limit of {MAX_GRID_SIZE}.")
+
     C3 = np.zeros((n_arrival, n_launch))
     Vinf_arr = np.zeros((n_arrival, n_launch))
     TOF = np.zeros((n_arrival, n_launch))
@@ -211,4 +218,14 @@ def plot_porkchop(launch_dates, arrival_dates, C3, TOF, filename='astrochop.png'
     ax.set_xlabel('Launch Date')
     ax.set_ylabel('Arrival Date')
     
+    # Security: Prevent path traversal and enforce extension (similar to mesh_exporter.py)
+    real_path = os.path.realpath(filename)
+    cwd = os.path.realpath(os.getcwd())
+
+    if os.path.commonpath([cwd, real_path]) != cwd:
+        raise ValueError(f"Security Error: File path resolves to '{real_path}', which is outside the current working directory.")
+
+    if not filename.lower().endswith('.png'):
+        raise ValueError(f"Security Error: Filename '{filename}' must end with .png extension.")
+
     plt.savefig(filename)
