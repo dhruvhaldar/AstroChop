@@ -1,5 +1,6 @@
 import sys
 import os
+import errno
 import numpy as np
 import matplotlib.pyplot as plt
 from datetime import datetime, timedelta
@@ -228,4 +229,17 @@ def plot_porkchop(launch_dates, arrival_dates, C3, TOF, filename='astrochop.png'
     if not filename.lower().endswith('.png'):
         raise ValueError(f"Security Error: Filename '{filename}' must end with .png extension.")
 
-    plt.savefig(filename)
+    # Secure file open to prevent TOCTOU/Symlink attacks
+    try:
+        flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC
+        if hasattr(os, 'O_NOFOLLOW'):
+            flags |= os.O_NOFOLLOW
+
+        fd = os.open(filename, flags, 0o666)
+    except OSError as e:
+        if hasattr(errno, 'ELOOP') and e.errno == errno.ELOOP:
+            raise ValueError(f"Security Error: File path '{filename}' is a symbolic link.")
+        raise
+
+    with os.fdopen(fd, 'wb') as f:
+        plt.savefig(f, format='png')
