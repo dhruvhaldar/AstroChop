@@ -138,15 +138,15 @@ def lambert(r1_vec, r2_vec, dt, mu, tm=1, tol=1e-5, max_iter=50):
         # Secant step
         denom_sec = t1 - t0
         # handle zero denom
-        denom_sec = np.where(denom_sec == 0, 1e-12, denom_sec)
+        denom_sec[denom_sec == 0] = 1e-12
         
         dz = -diff * (z1 - z0) / denom_sec
         
         z_new = z1 + dz
         
         # Update
-        z0 = z1.copy()
-        t0 = t1.copy()
+        z0 = z1
+        t0 = t1
         z1 = z_new
         t1 = compute_t(z1)
         
