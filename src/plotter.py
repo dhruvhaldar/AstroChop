@@ -168,7 +168,7 @@ def generate_porkchop(launch_dates, arrival_dates, body1='earth', body2='mars', 
 
     return launch_dates, arrival_dates, C3, Vinf_arr, TOF
 
-def plot_porkchop(launch_dates, arrival_dates, C3, TOF, filename='astrochop.png'):
+def plot_porkchop(launch_dates, arrival_dates, C3, TOF, filename='astrochop.png', optimal_transfer=None):
     X, Y = np.meshgrid([jd_from_date(d) for d in launch_dates], [jd_from_date(d) for d in arrival_dates])
     
     # Convert dates for axis labels
@@ -205,6 +205,17 @@ def plot_porkchop(launch_dates, arrival_dates, C3, TOF, filename='astrochop.png'
     levels_tof = range(100, 1000, 50)
     CS2 = ax.contour(X_dates, Y_dates, TOF, levels=levels_tof, colors='red', linestyles='dashed', linewidths=1.0)
     ax.clabel(CS2, inline=1, fontsize=8, fmt='%d d')
+
+    # Plot optimal transfer marker if provided
+    if optimal_transfer:
+        opt_launch, opt_arrival = optimal_transfer
+        # Convert to matplotlib date format
+        opt_x = mdates.date2num(opt_launch)
+        opt_y = mdates.date2num(opt_arrival)
+
+        # Plot star marker: White with black outline for visibility on any background
+        ax.plot(opt_x, opt_y, '*', markersize=15, markerfacecolor='white', markeredgecolor='black', label='Optimal Transfer', zorder=10)
+        ax.legend(loc='upper right')
 
     # Grid
     ax.grid(True, linestyle=':', alpha=0.6)

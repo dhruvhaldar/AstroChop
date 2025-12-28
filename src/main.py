@@ -42,20 +42,27 @@ def main():
         opt_arrival_date = ad[opt_arrival_idx]
         opt_c3 = C3[unraveled]
         opt_tof = TOF[unraveled]
+        opt_vinf = Vinf[unraveled]
 
+        months = opt_tof / 30.44
         print(f"\n🏆 Optimal Transfer Found:")
         print(f"   • Launch:  {opt_launch_date.strftime('%Y-%m-%d')}")
-        print(f"   • Arrival: {opt_arrival_date.strftime('%Y-%m-%d')} (TOF: {opt_tof:.1f} days)")
-        print(f"   • Energy:  {opt_c3:.2f} km²/s² (C3)")
+        print(f"   • Arrival: {opt_arrival_date.strftime('%Y-%m-%d')} (TOF: {opt_tof:.1f} days / ~{months:.1f} months)")
+        print(f"   • Energy:  {opt_c3:.2f} km²/s² (C3) | V∞: {opt_vinf:.2f} km/s")
 
     except ValueError:
         # np.nanargmin raises ValueError if all values are NaN
         print("\n⚠️ No valid transfer window found in this range.")
+        opt_launch_date = None
+        opt_arrival_date = None
     
     print("\n📊 Generating visualizations...")
 
     # Existing plotting
-    plot_porkchop(ld, ad, C3, TOF, filename='astrochop.png')
+    if opt_launch_date and opt_arrival_date:
+        plot_porkchop(ld, ad, C3, TOF, filename='astrochop.png', optimal_transfer=(opt_launch_date, opt_arrival_date))
+    else:
+        plot_porkchop(ld, ad, C3, TOF, filename='astrochop.png')
     print(f"   • Plot saved to: astrochop.png")
 
     # --- New Mesh Generation Logic ---
