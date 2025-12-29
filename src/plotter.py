@@ -228,4 +228,22 @@ def plot_porkchop(launch_dates, arrival_dates, C3, TOF, filename='astrochop.png'
     if not filename.lower().endswith('.png'):
         raise ValueError(f"Security Error: Filename '{filename}' must end with .png extension.")
 
-    plt.savefig(filename)
+    # Security: Use os.open with O_NOFOLLOW to prevent TOCTOU symlink attacks
+    # O_TRUNC to overwrite if exists, O_CREAT to create if not exists
+    flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC
+
+    # O_NOFOLLOW is not available on Windows
+    if hasattr(os, 'O_NOFOLLOW'):
+        flags |= os.O_NOFOLLOW
+
+    import errno
+    try:
+        # Set mode to 0o666 (rw-rw-rw-) to avoid creating executable files
+        fd = os.open(filename, flags, 0o666)
+    except OSError as e:
+        if hasattr(errno, 'ELOOP') and e.errno == errno.ELOOP:
+            raise ValueError(f"Security Error: File path '{filename}' is a symbolic link.")
+        raise
+
+    with os.fdopen(fd, 'wb') as f:
+        plt.savefig(f, format='png')
