@@ -11,11 +11,11 @@ def get_ephemeris(body_name, jd):
     
     Args:
         body_name (str): 'earth', 'mars', etc.
-        jd (float): Julian Date.
+        jd (float or np.array): Julian Date(s).
         
     Returns:
-        r_vec (np.array): Position vector (km).
-        v_vec (np.array): Velocity vector (km/s).
+        r_vec (np.array): Position vector (km). Shape (3,) or (N, 3).
+        v_vec (np.array): Velocity vector (km/s). Shape (3,) or (N, 3).
     """
     
     # Orbital elements (approximate, J2000)
@@ -112,8 +112,10 @@ def get_ephemeris(body_name, jd):
         return np.array([x, c*y - s*z, s*y + c*z])
 
     # Perifocal vector
-    r_peri = np.array([xv, yv, 0.0])
-    v_peri = np.array([vxv, vyv, 0.0])
+    # Use np.zeros_like to handle both scalar and array inputs
+    zeros = np.zeros_like(xv)
+    r_peri = np.array([xv, yv, zeros])
+    v_peri = np.array([vxv, vyv, zeros])
     
     # 3-1-3 rotation? 
     # Usually: rotate by -w around Z, then -i around X, then -O around Z to go FROM Inertial TO Perifocal
@@ -152,10 +154,13 @@ def get_ephemeris(body_name, jd):
         
     M_rot = R3(O) @ R1(i) @ R3(w)
     
+    # M_rot is (3, 3)
+    # r_peri is (3,) or (3, N)
     r_vec = M_rot @ r_peri
     v_vec = M_rot @ v_peri
     
-    return r_vec, v_vec
+    # Transpose to return (N, 3) if input was array, or (3,) if input was scalar
+    return r_vec.T, v_vec.T
 
 if __name__ == "__main__":
     # Test
