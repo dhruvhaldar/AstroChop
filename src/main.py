@@ -51,11 +51,14 @@ def main():
     except ValueError:
         # np.nanargmin raises ValueError if all values are NaN
         print("\n⚠️ No valid transfer window found in this range.")
+        opt_launch_date = None
+        opt_arrival_date = None
     
     print("\n📊 Generating visualizations...")
 
     # Existing plotting
-    plot_porkchop(ld, ad, C3, TOF, filename='astrochop.png')
+    optimal_transfer = (opt_launch_date, opt_arrival_date) if opt_launch_date and opt_arrival_date else None
+    plot_porkchop(ld, ad, C3, TOF, filename='astrochop.png', optimal_transfer=optimal_transfer)
     print(f"   • Plot saved to: astrochop.png")
 
     # --- New Mesh Generation Logic ---
