@@ -168,7 +168,7 @@ def generate_porkchop(launch_dates, arrival_dates, body1='earth', body2='mars', 
 
     return launch_dates, arrival_dates, C3, Vinf_arr, TOF
 
-def plot_porkchop(launch_dates, arrival_dates, C3, TOF, filename='astrochop.png'):
+def plot_porkchop(launch_dates, arrival_dates, C3, TOF, filename='astrochop.png', optimal_transfer=None):
     X, Y = np.meshgrid([jd_from_date(d) for d in launch_dates], [jd_from_date(d) for d in arrival_dates])
     
     # Convert dates for axis labels
@@ -208,6 +208,17 @@ def plot_porkchop(launch_dates, arrival_dates, C3, TOF, filename='astrochop.png'
 
     # Grid
     ax.grid(True, linestyle=':', alpha=0.6)
+
+    # Plot optimal transfer marker if provided
+    if optimal_transfer:
+        opt_launch, opt_arrival = optimal_transfer
+        # Convert to matplotlib date format
+        opt_launch_num = mdates.date2num(opt_launch)
+        opt_arrival_num = mdates.date2num(opt_arrival)
+
+        ax.plot(opt_launch_num, opt_arrival_num, marker='*', color='gold',
+                markersize=15, markeredgecolor='black', label='Optimal Transfer', zorder=10)
+        ax.legend(loc='upper right')
 
     ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
     ax.yaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
