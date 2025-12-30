@@ -35,37 +35,15 @@ def write_vtp(filename, mesh):
     n_points = len(mesh.vertices)
     n_polys = len(mesh.indices)
 
-    # Format data as space-separated strings
-    points_str = "\n".join([f"{v[0]:.6f} {v[1]:.6f} {v[2]:.6f}" for v in mesh.vertices])
+    # Use os.open with O_NOFOLLOW to prevent symlink attacks (TOCTOU)
+    # O_TRUNC to overwrite if exists, O_CREAT to create if not exists
+    flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC
 
-    # Indices: "3 v0 v1 v2" for triangles
-    # But in VTP/XML, we store connectivity and offsets separately.
-    # Connectivity: v0 v1 v2 v3 v4 v5 ...
-    # Offsets: 3 6 9 ...
-
-    connectivity = mesh.indices.flatten()
-    connectivity_str = " ".join(map(str, connectivity))
-
-    offsets = np.arange(3, n_polys * 3 + 1, 3)
-    offsets_str = " ".join(map(str, offsets))
-
-    # Scalars (C3 or Morphed Value)
-    # We flatten the grid data same way vertices are flattened
-    scalars = mesh.scalars.flatten()
-    scalars_str = " ".join([f"{s:.6f}" for s in scalars])
-
-    uvs = mesh.uvs.flatten()
-    uvs_str = " ".join([f"{u:.6f}" for u in uvs])
+    # O_NOFOLLOW is not available on Windows
+    if hasattr(os, 'O_NOFOLLOW'):
+        flags |= os.O_NOFOLLOW
 
     try:
-        # Open file descriptor with O_NOFOLLOW to prevent symlink attacks (TOCTOU)
-        # O_TRUNC to overwrite if exists, O_CREAT to create if not exists
-        flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC
-
-        # O_NOFOLLOW is not available on Windows
-        if hasattr(os, 'O_NOFOLLOW'):
-            flags |= os.O_NOFOLLOW
-
         # Set mode to 0o666 (rw-rw-rw-) to avoid creating executable files
         fd = os.open(filename, flags, 0o666)
     except OSError as e:
@@ -82,27 +60,33 @@ def write_vtp(filename, mesh):
         # Points
         f.write('      <Points>\n')
         f.write('        <DataArray type="Float32" Name="Points" NumberOfComponents="3" format="ascii">\n')
-        f.write(points_str + '\n')
+        # Optimized: Use np.savetxt to stream data instead of creating large string
+        # This drastically reduces memory usage for large meshes (e.g. 25M points)
+        # Time tradeoff is acceptable for stability.
+        np.savetxt(f, mesh.vertices, fmt='%.6f', delimiter=' ')
         f.write('        </DataArray>\n')
         f.write('      </Points>\n')
 
         # Polys
         f.write('      <Polys>\n')
         f.write('        <DataArray type="Int32" Name="connectivity" format="ascii">\n')
-        f.write(connectivity_str + '\n')
+        # Optimized: Write indices directly. VTP supports newline separation.
+        np.savetxt(f, mesh.indices, fmt='%d', delimiter=' ')
         f.write('        </DataArray>\n')
         f.write('        <DataArray type="Int32" Name="offsets" format="ascii">\n')
-        f.write(offsets_str + '\n')
+
+        offsets = np.arange(3, n_polys * 3 + 1, 3)
+        np.savetxt(f, offsets, fmt='%d') # Defaults to newline delimiter
         f.write('        </DataArray>\n')
         f.write('      </Polys>\n')
 
         # Point Data
         f.write('      <PointData Scalars="MorphedValue">\n')
         f.write('        <DataArray type="Float32" Name="MorphedValue" format="ascii">\n')
-        f.write(scalars_str + '\n')
+        np.savetxt(f, mesh.scalars, fmt='%.6f')
         f.write('        </DataArray>\n')
         f.write('        <DataArray type="Float32" Name="NormalizedUV" format="ascii">\n')
-        f.write(uvs_str + '\n')
+        np.savetxt(f, mesh.uvs, fmt='%.6f')
         f.write('        </DataArray>\n')
         f.write('      </PointData>\n')
 
