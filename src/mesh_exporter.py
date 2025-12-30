@@ -66,8 +66,8 @@ def write_vtp(filename, mesh):
         if hasattr(os, 'O_NOFOLLOW'):
             flags |= os.O_NOFOLLOW
 
-        # Set mode to 0o666 (rw-rw-rw-) to avoid creating executable files
-        fd = os.open(filename, flags, 0o666)
+        # Set mode to 0o600 (rw-------) for security (private to owner)
+        fd = os.open(filename, flags, 0o600)
     except OSError as e:
         if hasattr(errno, 'ELOOP') and e.errno == errno.ELOOP:
             raise ValueError(f"Security Error: File path '{filename}' is a symbolic link.")
