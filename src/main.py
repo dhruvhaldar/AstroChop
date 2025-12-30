@@ -30,6 +30,7 @@ def main():
     print("✨ Solution calculated.")
 
     # Find and display the optimal transfer (lowest C3)
+    optimal_transfer = None
     try:
         min_idx = np.nanargmin(C3)
         unraveled = np.unravel_index(min_idx, C3.shape)
@@ -43,6 +44,8 @@ def main():
         opt_c3 = C3[unraveled]
         opt_tof = TOF[unraveled]
 
+        optimal_transfer = (opt_launch_date, opt_arrival_date)
+
         print(f"\n🏆 Optimal Transfer Found:")
         print(f"   • Launch:  {opt_launch_date.strftime('%Y-%m-%d')}")
         print(f"   • Arrival: {opt_arrival_date.strftime('%Y-%m-%d')} (TOF: {opt_tof:.1f} days)")
@@ -55,7 +58,7 @@ def main():
     print("\n📊 Generating visualizations...")
 
     # Existing plotting
-    plot_porkchop(ld, ad, C3, TOF, filename='astrochop.png')
+    plot_porkchop(ld, ad, C3, TOF, filename='astrochop.png', optimal_transfer=optimal_transfer)
     print(f"   • Plot saved to: astrochop.png")
 
     # --- New Mesh Generation Logic ---

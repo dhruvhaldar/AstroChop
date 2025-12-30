@@ -7,3 +7,7 @@
 ## 2024-10-18 - [CLI Feedback]
 **Learning:** Long-running CLI processes (like trajectory optimization) feel broken without feedback. A simple text progress bar significantly improves confidence.
 **Action:** Implement optional `verbose` modes with text-based progress bars for computationally intensive loops.
+
+## 2024-11-20 - [Data Visualization]
+**Learning:** For optimization problems, users struggle to map numerical best-values from the console to the visual heatmap.
+**Action:** Always explicitly mark the global optimum (e.g., with a star ⭐️) on the generated plot to bridge the gap between data and visualization.
