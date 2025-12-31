@@ -22,3 +22,8 @@
 **Vulnerability:** The `plot_porkchop` function lacked path validation, allowing writing images to arbitrary paths (e.g., `../../etc/passwd`).
 **Learning:** Consistency in security controls is key. While `mesh_exporter.py` was secured, `plotter.py` was not.
 **Prevention:** Reused the `os.path.realpath` + `os.path.commonpath` pattern from `mesh_exporter.py` and added file extension enforcement.
+
+## 2025-02-27 - [Insecure File Permissions]
+**Vulnerability:** Generated output files (.vtp, .png) were created with `0o666` permissions (read/write for everyone), allowing other users on the system to potentially modify or read sensitive plot data.
+**Learning:** Using overly permissive modes (like `0o666`) violates the Principle of Least Privilege. Even if umask usually restricts this, the application should explicitly request secure permissions.
+**Prevention:** Use `os.open` with mode `0o600` (S_IRUSR | S_IWUSR) to ensure files are only readable and writable by the owner.
