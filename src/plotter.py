@@ -178,3 +178,56 @@ def plot_porkchop(launch_dates, arrival_dates, C3, TOF, filename='astrochop.png'
     
     plt.savefig(filename)
     print(f"Plot saved to {filename}")
+
+def plot_porkchop_fancy(launch_dates, arrival_dates, C3, TOF, filename='astrochop_fancy.png'):
+    # Use a dark style for a distinct "space" look
+    with plt.style.context('dark_background'):
+        fig, ax = plt.subplots(figsize=(12, 10), dpi=150)
+        
+        # Prepare date meshgrid for plotting
+        import matplotlib.dates as mdates
+        X_dates = mdates.date2num(np.meshgrid(launch_dates, arrival_dates)[0])
+        Y_dates = mdates.date2num(np.meshgrid(launch_dates, arrival_dates)[1])
+        
+        # 1. Filled Contours for C3 Energy (The "Colormap")
+        # Levels: focus on the low energy (efficient) transfers, but cover a range
+        c3_levels = np.linspace(0, 100, 200) 
+        # specific standard levels for lines
+        c3_line_levels = [10, 15, 20, 25, 30, 40, 50, 60, 80]
+        
+        # Use 'inferno' or 'turbo' for high contrast
+        # extend='both' ensures values outside range are colored
+        c3_fill = ax.contourf(X_dates, Y_dates, C3, levels=c3_levels, cmap='turbo', extend='max')
+        
+        # Add a colorbar
+        cbar = fig.colorbar(c3_fill, ax=ax, pad=0.02)
+        cbar.set_label(r'$C_3$ ($km^2/s^2$)', rotation=270, labelpad=20, fontsize=12)
+        
+        # 2. C3 Contour Lines (Overlay)
+        # We overlay darker or distinct lines to make reading values easier
+        c3_lines = ax.contour(X_dates, Y_dates, C3, levels=c3_line_levels, colors='white', linewidths=0.5, alpha=0.7)
+        ax.clabel(c3_lines, inline=True, fontsize=10, fmt='%1.0f')
+
+        # 3. Time of Flight (TOF) Contours
+        tof_levels = range(100, 600, 20)  # Every 20 days
+        tof_lines = ax.contour(X_dates, Y_dates, TOF, levels=tof_levels, colors='cyan',  linestyles='--', linewidths=0.8, alpha=0.8)
+        ax.clabel(tof_lines, inline=True, fontsize=10, fmt='%d d')
+
+        # Formatting Axes
+        ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
+        ax.yaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
+        
+        fig.autofmt_xdate()
+        
+        ax.set_title('Earth - Mars Transfer Porkchop Plot', fontsize=16, pad=15, fontweight='bold', color='white')
+        ax.set_xlabel('Launch Date (Earth Departure)', fontsize=12)
+        ax.set_ylabel('Arrival Date (Mars Arrival)', fontsize=12)
+        
+        ax.grid(True, linestyle=':', alpha=0.4, color='white')
+        
+        # Highlight logic (optional): Find min C3 and mark it?
+        # Let's keep it simple as requested, but "fancy" enough.
+
+        plt.tight_layout()
+        plt.savefig(filename, facecolor=fig.get_facecolor(), edgecolor='none')
+        print(f"Plot saved to {filename}")

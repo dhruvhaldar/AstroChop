@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta
 import numpy as np
-from plotter import generate_porkchop, plot_porkchop
+from plotter import generate_porkchop, plot_porkchop, plot_porkchop_fancy
 
 def main():
     print("Generating Earth-Mars Porkchop Plot...")
@@ -21,8 +21,12 @@ def main():
     
     ld, ad, C3, Vinf, TOF = generate_porkchop(launch_dates, arrival_dates, 'earth', 'mars')
     
-    print("Plotting...")
+    print("Plotting standard version...")
     plot_porkchop(ld, ad, C3, TOF, filename='astrochop.png')
+    
+    print("Plotting fancy version...")
+    plot_porkchop_fancy(ld, ad, C3, TOF, filename='astrochop_fancy.png')
+    
     print("Done.")
 
 if __name__ == "__main__":
