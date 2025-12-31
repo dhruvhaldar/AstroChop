@@ -1,8 +1,12 @@
+import sys
+import os
 import numpy as np
 import matplotlib.pyplot as plt
 from datetime import datetime, timedelta
 from lambert import lambert
 from ephemeris import get_ephemeris, MU_SUN
+
+MAX_GRID_SIZE = 25_000_000  # Protection against Memory Exhaustion (DoS)
 
 def jd_from_date(date):
     """
@@ -10,8 +14,6 @@ def jd_from_date(date):
     """
     # Simple conversion
     # JD = 367*Y - INT(7*(Y+INT((M+9)/12))/4) + INT(275*M/9) + D + 1721013.5 + UT/24
-    # Or just use astropy if available, but we don't have it.
-    # Use standard algorithm.
     
     Y = date.year
     M = date.month
@@ -29,8 +31,6 @@ def date_from_jd(jd):
     """
     Converts Julian Date to datetime object.
     """
-    # Inverse algorithm
-    # Adapted from standard sources
     Z = int(jd + 0.5)
     F = jd + 0.5 - Z
     if Z < 2299161:
@@ -53,7 +53,6 @@ def date_from_jd(jd):
     else:
         year = C - 4715
         
-    # Convert fraction of day to h:m:s
     d_frac = day - int(day)
     h_total = d_frac * 24
     h = int(h_total)
@@ -63,7 +62,7 @@ def date_from_jd(jd):
     
     return datetime(year, month, int(day), h, m, int(s))
 
-def generate_porkchop(launch_dates, arrival_dates, body1='earth', body2='mars'):
+def generate_porkchop(launch_dates, arrival_dates, body1='earth', body2='mars', verbose=False):
     """
     Generates data for porkchop plot.
     
@@ -72,6 +71,7 @@ def generate_porkchop(launch_dates, arrival_dates, body1='earth', body2='mars'):
         arrival_dates (list of datetime): Possible arrival dates.
         body1 (str): Departure body.
         body2 (str): Arrival body.
+        verbose (bool): Whether to show a progress bar.
         
     Returns:
         X (np.array): Launch dates (JDs).
@@ -82,6 +82,10 @@ def generate_porkchop(launch_dates, arrival_dates, body1='earth', body2='mars'):
     n_launch = len(launch_dates)
     n_arrival = len(arrival_dates)
     
+    # Security Check: Prevent Memory Exhaustion / DoS
+    if n_launch * n_arrival > MAX_GRID_SIZE:
+        raise ValueError(f"Grid size {n_launch}x{n_arrival} ({n_launch*n_arrival}) exceeds maximum limit of {MAX_GRID_SIZE}.")
+
     C3 = np.zeros((n_arrival, n_launch))
     Vinf_arr = np.zeros((n_arrival, n_launch))
     TOF = np.zeros((n_arrival, n_launch))
@@ -89,45 +93,82 @@ def generate_porkchop(launch_dates, arrival_dates, body1='earth', body2='mars'):
     # Pre-calculate positions to save time?
     # Or just loop. Loop is easier to write.
     
-    for i, ld in enumerate(launch_dates):
+    # Pre-calculate launch ephemeris
+    launch_data = []
+    for ld in launch_dates:
         jd1 = jd_from_date(ld)
         r1, v1_body = get_ephemeris(body1, jd1)
-        
-        for j, ad in enumerate(arrival_dates):
-            jd2 = jd_from_date(ad)
-            
-            dt_days = jd2 - jd1
-            if dt_days <= 0:
-                C3[j, i] = np.nan
-                TOF[j, i] = np.nan
-                continue
-            
-            r2, v2_body = get_ephemeris(body2, jd2)
-            
-            dt_sec = dt_days * 86400
-            
-            # Solve Lambert
-            try:
-                v1_trans, v2_trans = lambert(r1, r2, dt_sec, MU_SUN)
-                
-                # C3 = v_inf_dep^2 = |v_transfer - v_body|^2
-                v_inf_dep = np.linalg.norm(v1_trans - v1_body)
-                c3_val = v_inf_dep**2
-                
-                # V_inf_arr = |v_body - v_transfer|
-                v_inf_arr = np.linalg.norm(v2_trans - v2_body)
-                
-                C3[j, i] = c3_val
-                Vinf_arr[j, i] = v_inf_arr
-                TOF[j, i] = dt_days
-                
-            except Exception:
-                C3[j, i] = np.nan
-                TOF[j, i] = np.nan
+        launch_data.append((jd1, r1, v1_body))
+
+    # Pre-calculate arrival ephemeris
+    arrival_data = []
+    for ad in arrival_dates:
+        jd2 = jd_from_date(ad)
+        r2, v2_body = get_ephemeris(body2, jd2)
+        arrival_data.append((jd2, r2, v2_body))
+
+    # Vectorized implementation
+    if verbose:
+        print("Calculating vectorized solution...")
+
+    # Extract arrays from pre-calculated ephemeris
+    # launch_data: list of (jd, r, v)
+    jd1_arr = np.array([x[0] for x in launch_data])
+    r1_arr = np.array([x[1] for x in launch_data])
+    v1_arr = np.array([x[2] for x in launch_data])
+
+    # arrival_data: list of (jd, r, v)
+    jd2_arr = np.array([x[0] for x in arrival_data])
+    r2_arr = np.array([x[1] for x in arrival_data])
+    v2_arr = np.array([x[2] for x in arrival_data])
+
+    # Broadcast shapes
+    # launch (i): axis 1 -> (1, N)
+    r1_grid = r1_arr[np.newaxis, :, :]  # (1, N, 3)
+    v1_grid = v1_arr[np.newaxis, :, :]  # (1, N, 3)
+    jd1_grid = jd1_arr[np.newaxis, :]   # (1, N)
+
+    # arrival (j): axis 0 -> (M, 1)
+    r2_grid = r2_arr[:, np.newaxis, :]  # (M, 1, 3)
+    v2_grid = v2_arr[:, np.newaxis, :]  # (M, 1, 3)
+    jd2_grid = jd2_arr[:, np.newaxis]   # (M, 1)
+
+    # Time of Flight matrix (M, N)
+    dt_days = jd2_grid - jd1_grid
+    valid_mask = dt_days > 0
+
+    # Prepare inputs for Lambert
+    # We replace invalid dt with a dummy value (1.0) to avoid errors, then mask result
+    dt_sec = dt_days * 86400.0
+    dt_sec_safe = np.where(valid_mask, dt_sec, 1.0)
+
+    # Solve Lambert (vectorized)
+    # r1_grid (1, N, 3) broadcasts with r2_grid (M, 1, 3) -> (M, N, 3)
+    # dt_sec_safe (M, N)
+    # Note: lambert() handles broadcasting automatically
+    v1_trans, v2_trans = lambert(r1_grid, r2_grid, dt_sec_safe, MU_SUN)
+
+    # Calculate C3 and Vinf
+    # v1_trans (M, N, 3) - v1_grid (1, N, 3) -> (M, N, 3)
+    dv1 = v1_trans - v1_grid
+    v_inf_dep = np.linalg.norm(dv1, axis=-1)
+    C3 = v_inf_dep**2
+
+    # v2_trans (M, N, 3) - v2_grid (M, 1, 3) -> (M, N, 3)
+    dv2 = v2_trans - v2_grid
+    Vinf_arr = np.linalg.norm(dv2, axis=-1)
+
+    TOF = dt_days
+
+    # Apply mask to invalidate cases where dt <= 0
+    # Also mask any NaNs that might have come from Lambert (non-convergence)
+    C3[~valid_mask] = np.nan
+    Vinf_arr[~valid_mask] = np.nan
+    TOF[~valid_mask] = np.nan
 
     return launch_dates, arrival_dates, C3, Vinf_arr, TOF
 
-def plot_porkchop(launch_dates, arrival_dates, C3, TOF, filename='astrochop.png'):
+def plot_porkchop(launch_dates, arrival_dates, C3, TOF, filename='astrochop.png', optimal_transfer=None):
     X, Y = np.meshgrid([jd_from_date(d) for d in launch_dates], [jd_from_date(d) for d in arrival_dates])
     
     # Convert dates for axis labels
@@ -143,15 +184,6 @@ def plot_porkchop(launch_dates, arrival_dates, C3, TOF, filename='astrochop.png'
     CS = ax.contour(X, Y, C3, levels=levels, colors='blue', linewidths=0.5)
     ax.clabel(CS, inline=1, fontsize=8, fmt='%1.1f')
     
-    # Plot TOF contours
-    # levels_tof = np.linspace(100, 500, 9)
-    # CS2 = ax.contour(X, Y, TOF, levels=levels_tof, colors='red', linewidths=0.5, linestyles='dashed')
-    # ax.clabel(CS2, inline=1, fontsize=8, fmt='%1.0f')
-    
-    # Format axes with dates
-    # We can use matplotlib.dates but let's stick to simple labels for now or raw JDs?
-    # Better to use matplotlib dates.
-    
     import matplotlib.dates as mdates
     
     # We need to replot using date numbers
@@ -159,13 +191,34 @@ def plot_porkchop(launch_dates, arrival_dates, C3, TOF, filename='astrochop.png'
     Y_dates = mdates.date2num(np.meshgrid(launch_dates, arrival_dates)[1])
     
     ax.clear()
-    CS = ax.contour(X_dates, Y_dates, C3, levels=levels, colors='blue')
-    ax.clabel(CS, inline=1, fontsize=8, fmt='C3=%1.1f')
     
-    # Plot TOF
+    # Filled contours for C3
+    CSF = ax.contourf(X_dates, Y_dates, C3, levels=levels, cmap='viridis')
+    cbar = fig.colorbar(CSF, ax=ax)
+    cbar.set_label('$C_3$ (km$^2$/s$^2$)')
+
+    # Line contours for C3 (thin, white/dark for contrast)
+    CS = ax.contour(X_dates, Y_dates, C3, levels=levels, colors='white', linewidths=0.5, alpha=0.5)
+    ax.clabel(CS, inline=1, fontsize=8, fmt='%1.1f')
+
+    # Plot TOF (keep dashed red, maybe thicker or different color if needed)
     levels_tof = range(100, 1000, 50)
-    CS2 = ax.contour(X_dates, Y_dates, TOF, levels=levels_tof, colors='red', linestyles='dashed', linewidths=0.5)
+    CS2 = ax.contour(X_dates, Y_dates, TOF, levels=levels_tof, colors='red', linestyles='dashed', linewidths=1.0)
     ax.clabel(CS2, inline=1, fontsize=8, fmt='%d d')
+
+    # Grid
+    ax.grid(True, linestyle=':', alpha=0.6)
+
+    # Plot optimal transfer marker if provided
+    if optimal_transfer:
+        opt_launch, opt_arrival = optimal_transfer
+        # Convert to matplotlib date format
+        opt_launch_num = mdates.date2num(opt_launch)
+        opt_arrival_num = mdates.date2num(opt_arrival)
+
+        ax.plot(opt_launch_num, opt_arrival_num, marker='*', color='gold',
+                markersize=15, markeredgecolor='black', label='Optimal Transfer', zorder=10)
+        ax.legend(loc='upper right')
 
     ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
     ax.yaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
@@ -176,58 +229,32 @@ def plot_porkchop(launch_dates, arrival_dates, C3, TOF, filename='astrochop.png'
     ax.set_xlabel('Launch Date')
     ax.set_ylabel('Arrival Date')
     
-    plt.savefig(filename)
-    print(f"Plot saved to {filename}")
+    # Security: Prevent path traversal and enforce extension (similar to mesh_exporter.py)
+    real_path = os.path.realpath(filename)
+    cwd = os.path.realpath(os.getcwd())
 
-def plot_porkchop_fancy(launch_dates, arrival_dates, C3, TOF, filename='astrochop_fancy.png'):
-    # Use a dark style for a distinct "space" look
-    with plt.style.context('dark_background'):
-        fig, ax = plt.subplots(figsize=(12, 10), dpi=150)
-        
-        # Prepare date meshgrid for plotting
-        import matplotlib.dates as mdates
-        X_dates = mdates.date2num(np.meshgrid(launch_dates, arrival_dates)[0])
-        Y_dates = mdates.date2num(np.meshgrid(launch_dates, arrival_dates)[1])
-        
-        # 1. Filled Contours for C3 Energy (The "Colormap")
-        # Levels: focus on the low energy (efficient) transfers, but cover a range
-        c3_levels = np.linspace(0, 100, 200) 
-        # specific standard levels for lines
-        c3_line_levels = [10, 15, 20, 25, 30, 40, 50, 60, 80]
-        
-        # Use 'inferno' or 'turbo' for high contrast
-        # extend='both' ensures values outside range are colored
-        c3_fill = ax.contourf(X_dates, Y_dates, C3, levels=c3_levels, cmap='turbo', extend='max')
-        
-        # Add a colorbar
-        cbar = fig.colorbar(c3_fill, ax=ax, pad=0.02)
-        cbar.set_label(r'$C_3$ ($km^2/s^2$)', rotation=270, labelpad=20, fontsize=12)
-        
-        # 2. C3 Contour Lines (Overlay)
-        # We overlay darker or distinct lines to make reading values easier
-        c3_lines = ax.contour(X_dates, Y_dates, C3, levels=c3_line_levels, colors='white', linewidths=0.5, alpha=0.7)
-        ax.clabel(c3_lines, inline=True, fontsize=10, fmt='%1.0f')
+    if os.path.commonpath([cwd, real_path]) != cwd:
+        raise ValueError(f"Security Error: File path resolves to '{real_path}', which is outside the current working directory.")
 
-        # 3. Time of Flight (TOF) Contours
-        tof_levels = range(100, 600, 20)  # Every 20 days
-        tof_lines = ax.contour(X_dates, Y_dates, TOF, levels=tof_levels, colors='cyan',  linestyles='--', linewidths=0.8, alpha=0.8)
-        ax.clabel(tof_lines, inline=True, fontsize=10, fmt='%d d')
+    if not filename.lower().endswith('.png'):
+        raise ValueError(f"Security Error: Filename '{filename}' must end with .png extension.")
 
-        # Formatting Axes
-        ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
-        ax.yaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
-        
-        fig.autofmt_xdate()
-        
-        ax.set_title('Earth - Mars Transfer Porkchop Plot', fontsize=16, pad=15, fontweight='bold', color='white')
-        ax.set_xlabel('Launch Date (Earth Departure)', fontsize=12)
-        ax.set_ylabel('Arrival Date (Mars Arrival)', fontsize=12)
-        
-        ax.grid(True, linestyle=':', alpha=0.4, color='white')
-        
-        # Highlight logic (optional): Find min C3 and mark it?
-        # Let's keep it simple as requested, but "fancy" enough.
+    # Security: Use os.open with O_NOFOLLOW to prevent TOCTOU symlink attacks
+    # O_TRUNC to overwrite if exists, O_CREAT to create if not exists
+    flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC
 
-        plt.tight_layout()
-        plt.savefig(filename, facecolor=fig.get_facecolor(), edgecolor='none')
-        print(f"Plot saved to {filename}")
+    # O_NOFOLLOW is not available on Windows
+    if hasattr(os, 'O_NOFOLLOW'):
+        flags |= os.O_NOFOLLOW
+
+    import errno
+    try:
+        # Set mode to 0o666 (rw-rw-rw-) to avoid creating executable files
+        fd = os.open(filename, flags, 0o666)
+    except OSError as e:
+        if hasattr(errno, 'ELOOP') and e.errno == errno.ELOOP:
+            raise ValueError(f"Security Error: File path '{filename}' is a symbolic link.")
+        raise
+
+    with os.fdopen(fd, 'wb') as f:
+        plt.savefig(f, format='png')

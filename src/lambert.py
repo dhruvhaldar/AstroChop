@@ -1,171 +1,187 @@
 import numpy as np
+import warnings
 
+def stumpff_c_s(z):
+    """
+    Vectorized Stumpff C and S functions computed together.
+    Returns (c, s).
+    """
+    c = np.zeros_like(z, dtype=float)
+    s = np.zeros_like(z, dtype=float)
+
+    # Identify regimes
+    pos = z > 0
+    neg = z < 0
+    zero = z == 0
+
+    # Positive z
+    if np.any(pos):
+        z_pos = z[pos]
+        sqrt_z = np.sqrt(z_pos)
+        c[pos] = (1 - np.cos(sqrt_z)) / z_pos
+        s[pos] = (sqrt_z - np.sin(sqrt_z)) / (sqrt_z**3)
+
+    # Negative z
+    if np.any(neg):
+        z_neg = z[neg]
+        sqrt_mz = np.sqrt(-z_neg)
+        c[neg] = (np.cosh(sqrt_mz) - 1) / (-z_neg)
+        s[neg] = (np.sinh(sqrt_mz) - sqrt_mz) / (sqrt_mz**3)
+
+    # Zero case
+    if np.any(zero):
+        c[zero] = 0.5
+        s[zero] = 1.0/6.0
+
+    return c, s
+
+# Retain original functions for compatibility if needed, but implementation uses the combined one
 def stumpff_c(z):
-    if z > 0:
-        return (1 - np.cos(np.sqrt(z))) / z
-    elif z < 0:
-        return (np.cosh(np.sqrt(-z)) - 1) / (-z)
-    else:
-        return 1/2.0
+    return stumpff_c_s(z)[0]
 
 def stumpff_s(z):
-    if z > 0:
-        return (np.sqrt(z) - np.sin(np.sqrt(z))) / (np.sqrt(z)**3)
-    elif z < 0:
-        return (np.sinh(np.sqrt(-z)) - np.sqrt(-z)) / (np.sqrt(-z)**3)
-    else:
-        return 1/6.0
+    return stumpff_c_s(z)[1]
 
-def lambert(r1_vec, r2_vec, dt, mu, tm=1):
+def lambert(r1_vec, r2_vec, dt, mu, tm=1, tol=1e-5, max_iter=50):
     """
-    Solves Lambert's problem using Universal Variables.
+    Solves Lambert's problem using Universal Variables (Vectorized).
     
     Args:
-        r1_vec (np.array): Initial position vector (km).
-        r2_vec (np.array): Final position vector (km).
-        dt (float): Time of flight (seconds).
-        mu (float): Gravitational parameter (km^3/s^2).
-        tm (int): Transfer mode. +1 for short way, -1 for long way.
-                  (Note: typical implementations might use separate boolean for retrograde)
-                  Here, we assume prograde motion. If tm is -1, it handles > 180 deg transfer?
-                  Let's stick to simple short/long way based on cross product or just standard algorithm logic.
-                  
-                  Actually, let's simplify: 
-                  We usually want the "short way" (angle < 180) or "long way" (angle > 180).
-                  The direction of motion depends on the specific orbit, but usually for interplanetary
-                  we assume prograde.
+        r1_vec (np.array): Initial position vector (..., 3).
+        r2_vec (np.array): Final position vector (..., 3).
+        dt (np.array or float): Time of flight (seconds).
+        mu (float): Gravitational parameter.
+        tm (int): Transfer mode (+1 short way, -1 long way).
+        tol (float): Tolerance for convergence.
+        max_iter (int): Maximum iterations.
                   
     Returns:
-        v1_vec (np.array): Initial velocity vector.
-        v2_vec (np.array): Final velocity vector.
+        v1_vec (np.array): Initial velocity vector (..., 3).
+        v2_vec (np.array): Final velocity vector (..., 3).
     """
-    r1 = np.linalg.norm(r1_vec)
-    r2 = np.linalg.norm(r2_vec)
+    # Ensure inputs are arrays for broadcasting
+    r1_vec = np.asarray(r1_vec)
+    r2_vec = np.asarray(r2_vec)
+    dt = np.asarray(dt)
     
-    cross_12 = np.cross(r1_vec, r2_vec)
+    # Handle scalar inputs (single case) by promoting to 1-element arrays
+    was_scalar = False
+    if r1_vec.ndim == 1:
+        r1_vec = r1_vec[np.newaxis, :]
+        r2_vec = r2_vec[np.newaxis, :]
+        dt = np.atleast_1d(dt)
+        was_scalar = True
     
-    # Calculate difference in true anomaly
-    # cos(dnu) = dot(r1, r2) / (r1 * r2)
-    # sin(dnu) = (r1 x r2) dot (angular_momentum_direction?)
-    # For prograde orbits, angular momentum is usually +Z roughly.
-    # Let's compute dnu carefully.
+    # Magnitudes
+    r1 = np.linalg.norm(r1_vec, axis=-1)
+    r2 = np.linalg.norm(r2_vec, axis=-1)
     
-    cos_dnu = np.dot(r1_vec, r2_vec) / (r1 * r2)
+    dot_prod = np.sum(r1_vec * r2_vec, axis=-1)
     
-    # Ensure numerical stability
-    if cos_dnu > 1.0: cos_dnu = 1.0
-    if cos_dnu < -1.0: cos_dnu = -1.0
-
-    # Determine the angle 0 <= dnu <= pi initially
-    # But we need to know if it's > pi.
-    # Usually we rely on the z-component of the cross product for 2D, 
-    # but in 3D we need to decide the transfer plane.
-    # "Short way" means dnu < 180. "Long way" means dnu > 180.
-    # Porkchop plots usually scan both or pick the optimal.
-    # We will accept a 'tm' parameter: +1 for short way, -1 for long way.
+    # Cos dnu
+    cos_dnu = dot_prod / (r1 * r2)
+    cos_dnu = np.clip(cos_dnu, -1.0, 1.0)
     
-    # Actually, usually 'tm' means direction of motion (prograde/retrograde).
-    # Let's assume prograde. 
-    # If Z component of cross product is positive, it is prograde short way?
-    # No, let's keep it simple. dnu is the angle swept.
-    
-    # If tm == 1 (short way):
-    #   if cross_z >= 0: dnu = acos(...)
-    #   else: dnu = 2pi - acos(...) ? No.
-    
-    # Let's just calculate the angle between vectors.
     dnu = np.arccos(cos_dnu)
-    
-    # Fix the quadrant if needed based on `tm` (transfer mode).
-    # tm = 1: short way (dnu < pi)
-    # tm = -1: long way (dnu > pi)
     
     if tm == -1:
         dnu = 2 * np.pi - dnu
         
-    A = np.sin(dnu) * np.sqrt(r1 * r2 / (1 - np.cos(dnu)))
+    # Calculate A
+    denom = 1 - cos_dnu
+    # Prevent division by zero if dnu=0 (identical points)
+    # Using np.where to handle scalars/arrays safely
+    denom = np.where(denom == 0, 1e-12, denom)
     
-    # Define function to zero
-    def time_of_flight_residual(z):
-        C = stumpff_c(z)
-        S = stumpff_s(z)
-        if C <= 0: return np.nan
-        y = r1 + r2 + A * (z * S - 1) / np.sqrt(C)
-        if y < 0:
-            return np.nan # Invalid region
-        x = np.sqrt(y / C)
-        t = (x**3 * S + A * np.sqrt(y)) / np.sqrt(mu)
-        return t - dt
+    A = np.sin(dnu) * np.sqrt(r1 * r2 / denom)
+    
+    # Solver state
+    # We solve for z.
+    # Initial guesses
+    z0 = np.zeros_like(dt, dtype=float)
+    z1 = np.ones_like(dt, dtype=float) # Guess z=1
+    
+    # Helper to compute Time from z
+    def compute_t(z_vals):
+        C, S = stumpff_c_s(z_vals)
+        
+        # y = r1 + r2 + A * (z*S - 1)/sqrt(C)
+        
+        sqrt_C = np.sqrt(C)
+        term = (z_vals * S - 1) / sqrt_C
+        y_val = r1 + r2 + A * term
+        
+        # Valid check
+        valid = y_val > 0
+        
+        t_val = np.full_like(z_vals, np.nan)
+        
+        if np.any(valid):
+            x_val = np.sqrt(y_val[valid] / C[valid])
+            t_val[valid] = (x_val**3 * S[valid] + A[valid] * np.sqrt(y_val[valid])) / np.sqrt(mu)
 
-    from scipy.optimize import brentq
-    
-    # Find bounds?
-    # z can be positive (ellipse) or negative (hyperbola).
-    # Lower bound for z is related to parabolic limit?
-    # Usually -4pi^2 is a safe lower bound for one revolution? 
-    # For single revolution transfer, z > -4pi^2 approx?
-    
-    try:
-        # We try to bracket the root.
-        # z=0 is a parabola.
-        # Check T(0).
-        t0 = time_of_flight_residual(0)
-        
-        if np.isnan(t0):
-            # This shouldn't happen for valid geometries usually?
-             # Check y calculation for z=0.
-             # y(0) = r1 + r2 + A * (-1) / sqrt(1/2) = r1+r2 - A*sqrt(2)
-             pass
-        
-        # If t0 < dt, we need larger t, meaning larger a, so z goes towards 0 or positive?
-        # Period T ~ a^1.5. z = x^2/a. 
-        
-        # Let's search in a reasonable range [-100, 100] ?
-        # Or better yet, define the function and let root solver handle it with a guess.
-        
-        from scipy.optimize import root_scalar
-        sol = root_scalar(time_of_flight_residual, x0=0, x1=1, bracket=None, method='secant') 
-        # Secant might be unstable if we hit y<0.
-        # Let's try bracket.
-        
-        # We can try to bracket it manually.
-        lower = -4*np.pi**2 + 0.1
-        upper = 4*np.pi**2
-        
-        # If dt is very large, z approaches upper limit (multi-rev).
-        # We assume single revolution (0 revs).
-        
-        # Check signs
-        f_lower = time_of_flight_residual(lower)
-        f_upper = time_of_flight_residual(upper)
-        
-        if np.isnan(f_lower): f_lower = -1e9 # hack
-        
-        if f_lower * f_upper < 0:
-             z = brentq(time_of_flight_residual, lower, upper)
-        else:
-             # Try to find root with newton or just guess
-             sol = root_scalar(time_of_flight_residual, x0=0, method='secant')
-             z = sol.root
-             
-    except Exception as e:
-        # Fallback or propagate error
-        # print(f"Lambert solver failed: {e}")
-        return np.zeros(3), np.zeros(3)
+        return t_val
 
-    # Recompute values with solution z
-    C = stumpff_c(z)
-    S = stumpff_s(z)
-    # Ensure C is not zero (it shouldn't be for real z)
-    if C <= 0: C = 1e-9
-    y = r1 + r2 + A * (z * S - 1) / np.sqrt(C)
+    # Initialize Secant
+    t0 = compute_t(z0)
+    t1 = compute_t(z1)
+
+    for _ in range(max_iter):
+        diff = t1 - dt
+        # Check convergence (ignoring NaNs)
+        valid_diff = diff[~np.isnan(diff)]
+        if len(valid_diff) > 0 and np.all(np.abs(valid_diff) < tol):
+            # Also check that we don't have pending NaNs that could be resolved?
+            # If everything valid is converged, we stop.
+            break
+
+        # Secant step
+        denom_sec = t1 - t0
+        # handle zero denom
+        denom_sec[denom_sec == 0] = 1e-12
+        
+        dz = -diff * (z1 - z0) / denom_sec
+        
+        z_new = z1 + dz
+        
+        # Update
+        z0 = z1
+        t0 = t1
+        z1 = z_new
+        t1 = compute_t(z1)
+        
+        # If t1 became NaN (invalid y), try to recover?
+        nan_mask = np.isnan(t1)
+        if np.any(nan_mask):
+             # Simple recovery: take midpoint of previous valid z0
+             # We assume z0 was valid. If z0 was also nan, we can't help much.
+             # Only update those that are NaN
+             z1[nan_mask] = (z0[nan_mask] + z0[nan_mask])/2.0
+             t1 = compute_t(z1)
+
+    # Final z is z1
+    z = z1
+
+    # Compute v vectors
+    C, S = stumpff_c_s(z)
+    sqrt_C = np.sqrt(C)
+    y = r1 + r2 + A * (z * S - 1) / sqrt_C
     
-    f = 1 - y / r1
-    g = A * np.sqrt(y / mu)
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        f = 1 - y / r1
+        g = A * np.sqrt(y / mu)
+        g_dot = 1 - y / r2
+
+        # Broadcasting g to (..., 1)
+        g_exp = np.expand_dims(g, axis=-1)
+        f_exp = np.expand_dims(f, axis=-1)
+        g_dot_exp = np.expand_dims(g_dot, axis=-1)
+
+        v1_vec = (r2_vec - f_exp * r1_vec) / g_exp
+        v2_vec = (g_dot_exp * r2_vec - r1_vec) / g_exp
     
-    g_dot = 1 - y / r2
-    
-    v1_vec = (r2_vec - f * r1_vec) / g
-    v2_vec = (g_dot * r2_vec - r1_vec) / g
-    
-    return v1_vec, v2_vec
+    if was_scalar:
+        return v1_vec[0], v2_vec[0]
+    else:
+        return v1_vec, v2_vec
