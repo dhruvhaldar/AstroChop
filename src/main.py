@@ -58,7 +58,8 @@ def main():
     print("\n📊 Generating visualizations...")
 
     # Existing plotting
-    plot_porkchop(ld, ad, C3, TOF, filename='astrochop.png', optimal_transfer=optimal_transfer)
+    plot_title = f"Earth-Mars Porkchop Plot ({start_launch.year} Opportunity)"
+    plot_porkchop(ld, ad, C3, TOF, filename='astrochop.png', optimal_transfer=optimal_transfer, title=plot_title)
     print(f"   • Plot saved to: astrochop.png")
 
     # --- New Mesh Generation Logic ---
