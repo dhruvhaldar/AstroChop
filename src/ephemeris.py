@@ -11,11 +11,11 @@ def get_ephemeris(body_name, jd):
     
     Args:
         body_name (str): 'earth', 'mars', etc.
-        jd (float): Julian Date.
+        jd (float or np.array): Julian Date (scalar or array).
         
     Returns:
-        r_vec (np.array): Position vector (km).
-        v_vec (np.array): Velocity vector (km/s).
+        r_vec (np.array): Position vector (km). Shape (3,) or (N, 3).
+        v_vec (np.array): Velocity vector (km/s). Shape (3,) or (N, 3).
     """
     
     # Orbital elements (approximate, J2000)
@@ -27,6 +27,9 @@ def get_ephemeris(body_name, jd):
     
     # Reference J2000
     J2000 = 2451545.0
+
+    # Ensure jd is handled as array internally if needed, or scalar if that's what it is
+    # However, simple math operations work on both.
     d = jd - J2000
     
     elements = {}
@@ -98,49 +101,18 @@ def get_ephemeris(body_name, jd):
     vyv = v_factor * np.sqrt(1 - e**2) * np.cos(E)
     
     # Rotate to ECI (or ecliptic)
-    # P = [cos w cos O - sin w cos i sin O, -sin w cos O - cos w cos i sin O, sin i sin O] etc.
-    # It's easier to rotate vectors
     
-    def rot_z(angle, vec):
-        c, s = np.cos(angle), np.sin(angle)
-        x, y, z = vec
-        return np.array([c*x - s*y, s*x + c*y, z])
-        
-    def rot_x(angle, vec):
-        c, s = np.cos(angle), np.sin(angle)
-        x, y, z = vec
-        return np.array([x, c*y - s*z, s*y + c*z])
-
-    # Perifocal vector
-    r_peri = np.array([xv, yv, 0.0])
-    v_peri = np.array([vxv, vyv, 0.0])
+    # Perifocal vector construction
+    # Handle array inputs for jd
+    is_array = np.ndim(jd) > 0
     
-    # 3-1-3 rotation? 
-    # Usually: rotate by -w around Z, then -i around X, then -O around Z to go FROM Inertial TO Perifocal
-    # So to go FROM Perifocal TO Inertial:
-    # Rotate by -w (which is w) around Z? No.
-    # r_ECI = Rz(-O) Rx(-i) Rz(-w) r_peri
-    # Actually standard rotation matrix:
-    # r_ECI = Rz(-Omega) * Rx(-i) * Rz(-omega) * r_peri (if using Euler angles as defined typically)
-    # Wait, usually P is Rz(Omega) Rx(i) Rz(omega)?
-    # Let's apply rotations manually in sequence:
-    # 1. Rotate by -w around Z? No, we are in perifocal, so orbit plane.
-    # First rotation is argument of periapsis w in the plane.
-    # Actually, Rz(-w) * r_peri puts X axis aligned with node line?
-    
-    # To get to inertial:
-    # 1. Rotate by -w around Z (aligns periapsis with node?) -> No.
-    # r_node = Rz(-w) r_peri ?
-    # Let's check: x_peri is towards periapsis.
-    # We want to rotate so x axis is the ascending node.
-    # The angle from node to periapsis is w. So we rotate by -w.
-    
-    # Actually, let's use the standard rotation matrix.
-    # R3_w = [[cw, -sw, 0], [sw, cw, 0], [0,0,1]]
-    # R1_i = [[1, 0, 0], [0, ci, -si], [0, si, ci]]
-    # R3_O = [[cO, -sO, 0], [sO, cO, 0], [0,0,1]]
-    
-    # r_ECI = R3_O * R1_i * R3_w * r_peri
+    if is_array:
+        zeros = np.zeros_like(xv)
+        r_peri = np.stack([xv, yv, zeros]) # (3, N)
+        v_peri = np.stack([vxv, vyv, zeros]) # (3, N)
+    else:
+        r_peri = np.array([xv, yv, 0.0]) # (3,)
+        v_peri = np.array([vxv, vyv, 0.0]) # (3,)
     
     def R3(ang):
         c, s = np.cos(ang), np.sin(ang)
@@ -155,7 +127,11 @@ def get_ephemeris(body_name, jd):
     r_vec = M_rot @ r_peri
     v_vec = M_rot @ v_peri
     
-    return r_vec, v_vec
+    if is_array:
+        # Transpose to (N, 3) to match vector convention
+        return r_vec.T, v_vec.T
+    else:
+        return r_vec, v_vec
 
 if __name__ == "__main__":
     # Test

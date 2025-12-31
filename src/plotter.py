@@ -90,37 +90,18 @@ def generate_porkchop(launch_dates, arrival_dates, body1='earth', body2='mars', 
     Vinf_arr = np.zeros((n_arrival, n_launch))
     TOF = np.zeros((n_arrival, n_launch))
     
-    # Pre-calculate positions to save time?
-    # Or just loop. Loop is easier to write.
-    
-    # Pre-calculate launch ephemeris
-    launch_data = []
-    for ld in launch_dates:
-        jd1 = jd_from_date(ld)
-        r1, v1_body = get_ephemeris(body1, jd1)
-        launch_data.append((jd1, r1, v1_body))
-
-    # Pre-calculate arrival ephemeris
-    arrival_data = []
-    for ad in arrival_dates:
-        jd2 = jd_from_date(ad)
-        r2, v2_body = get_ephemeris(body2, jd2)
-        arrival_data.append((jd2, r2, v2_body))
-
-    # Vectorized implementation
+    # Pre-calculate positions using vectorized ephemeris
     if verbose:
         print("Calculating vectorized solution...")
 
-    # Extract arrays from pre-calculated ephemeris
-    # launch_data: list of (jd, r, v)
-    jd1_arr = np.array([x[0] for x in launch_data])
-    r1_arr = np.array([x[1] for x in launch_data])
-    v1_arr = np.array([x[2] for x in launch_data])
+    # Convert datetimes to JDs (vectorized or list comp, list comp is fast enough for 1D)
+    jd1_arr = np.array([jd_from_date(ld) for ld in launch_dates])
+    jd2_arr = np.array([jd_from_date(ad) for ad in arrival_dates])
 
-    # arrival_data: list of (jd, r, v)
-    jd2_arr = np.array([x[0] for x in arrival_data])
-    r2_arr = np.array([x[1] for x in arrival_data])
-    v2_arr = np.array([x[2] for x in arrival_data])
+    # Get ephemeris for all dates at once
+    # returns (N, 3) arrays
+    r1_arr, v1_arr = get_ephemeris(body1, jd1_arr)
+    r2_arr, v2_arr = get_ephemeris(body2, jd2_arr)
 
     # Broadcast shapes
     # launch (i): axis 1 -> (1, N)
