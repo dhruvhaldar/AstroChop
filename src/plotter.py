@@ -168,7 +168,7 @@ def generate_porkchop(launch_dates, arrival_dates, body1='earth', body2='mars', 
 
     return launch_dates, arrival_dates, C3, Vinf_arr, TOF
 
-def plot_porkchop(launch_dates, arrival_dates, C3, TOF, filename='astrochop.png', optimal_transfer=None):
+def plot_porkchop(launch_dates, arrival_dates, C3, TOF, filename='astrochop.png', optimal_transfer=None, title=None):
     X, Y = np.meshgrid([jd_from_date(d) for d in launch_dates], [jd_from_date(d) for d in arrival_dates])
     
     # Convert dates for axis labels
@@ -225,7 +225,15 @@ def plot_porkchop(launch_dates, arrival_dates, C3, TOF, filename='astrochop.png'
     
     fig.autofmt_xdate()
     
-    ax.set_title('Earth-Mars Porkchop Plot')
+    if title:
+        ax.set_title(title)
+    elif launch_dates:
+        # Smart default: Include the launch year for context
+        year = launch_dates[0].year
+        ax.set_title(f'Earth-Mars Porkchop Plot ({year})')
+    else:
+        ax.set_title('Earth-Mars Porkchop Plot')
+
     ax.set_xlabel('Launch Date')
     ax.set_ylabel('Arrival Date')
     
