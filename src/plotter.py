@@ -249,8 +249,8 @@ def plot_porkchop(launch_dates, arrival_dates, C3, TOF, filename='astrochop.png'
 
     import errno
     try:
-        # Set mode to 0o666 (rw-rw-rw-) to avoid creating executable files
-        fd = os.open(filename, flags, 0o666)
+        # Set mode to 0o600 (rw-------) to ensure privacy
+        fd = os.open(filename, flags, 0o600)
     except OSError as e:
         if hasattr(errno, 'ELOOP') and e.errno == errno.ELOOP:
             raise ValueError(f"Security Error: File path '{filename}' is a symbolic link.")
