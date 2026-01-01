@@ -95,6 +95,9 @@ def lambert(r1_vec, r2_vec, dt, mu, tm=1, tol=1e-5, max_iter=50):
     
     A = np.sin(dnu) * np.sqrt(r1 * r2 / denom)
     
+    # Precompute r_sum as it is constant in the loop
+    r_sum = r1 + r2
+
     # Solver state
     # We solve for z.
     # Initial guesses
@@ -105,11 +108,11 @@ def lambert(r1_vec, r2_vec, dt, mu, tm=1, tol=1e-5, max_iter=50):
     def compute_t(z_vals):
         C, S = stumpff_c_s(z_vals)
         
-        # y = r1 + r2 + A * (z*S - 1)/sqrt(C)
+        # y = r_sum + A * (z*S - 1)/sqrt(C)
         
         sqrt_C = np.sqrt(C)
         term = (z_vals * S - 1) / sqrt_C
-        y_val = r1 + r2 + A * term
+        y_val = r_sum + A * term
         
         # Valid check
         valid = y_val > 0
