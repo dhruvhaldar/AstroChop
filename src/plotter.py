@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 from lambert import lambert
 from ephemeris import get_ephemeris, MU_SUN
 
-MAX_GRID_SIZE = 25_000_000  # Protection against Memory Exhaustion (DoS)
+MAX_GRID_SIZE = 4_000_000  # Protection against Memory Exhaustion (DoS) - Reduced to ~600MB peak usage
 
 def jd_from_date(date):
     """
