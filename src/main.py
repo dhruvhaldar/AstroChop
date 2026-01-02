@@ -48,7 +48,7 @@ def main():
 
         print(f"\n🏆 Optimal Transfer Found:")
         print(f"   • Launch:  {opt_launch_date.strftime('%Y-%m-%d')}")
-        print(f"   • Arrival: {opt_arrival_date.strftime('%Y-%m-%d')} (TOF: {opt_tof:.1f} days)")
+        print(f"   • Arrival: {opt_arrival_date.strftime('%Y-%m-%d')} (TOF: {opt_tof:.1f} days / {opt_tof/30.44:.1f} months)")
         print(f"   • Energy:  {opt_c3:.2f} km²/s² (C3)")
 
     except ValueError:
@@ -57,40 +57,47 @@ def main():
     
     print("\n📊 Generating visualizations...")
 
-    # Existing plotting
-    plot_title = f"Earth-Mars Porkchop Plot ({start_launch.year} Opportunity)"
-    plot_porkchop(ld, ad, C3, TOF, filename='astrochop.png', optimal_transfer=optimal_transfer, title=plot_title)
-    print(f"   • Plot saved to: astrochop.png")
+    try:
+        # Existing plotting
+        plot_title = f"Earth-Mars Porkchop Plot ({start_launch.year} Opportunity)"
+        plot_porkchop(ld, ad, C3, TOF, filename='astrochop.png', optimal_transfer=optimal_transfer, title=plot_title)
+        print(f"   • Plot saved to: astrochop.png")
 
-    # --- New Mesh Generation Logic ---
-    # Convert dates to floats (JDs) for the axes
-    x_axis = np.array([jd_from_date(d) for d in ld])
-    y_axis = np.array([jd_from_date(d) for d in ad])
+        # --- New Mesh Generation Logic ---
+        # Convert dates to floats (JDs) for the axes
+        x_axis = np.array([jd_from_date(d) for d in ld])
+        y_axis = np.array([jd_from_date(d) for d in ad])
 
-    # Create DataGrid using C3 energy
-    grid = DataGrid(C3, x_axis, y_axis)
+        # Create DataGrid using C3 energy
+        grid = DataGrid(C3, x_axis, y_axis)
 
-    # Create Mesh
-    mesh = PorkchopMesh(grid)
+        # Create Mesh
+        mesh = PorkchopMesh(grid)
 
-    # Generate Mesh Geometry
-    # Using log_10 because C3 can vary significantly
-    # Scaling Z by 1000 for visibility in ParaView (otherwise days/dates values might dwarf it)
-    # Actually dates are JDs (~2.45e6), so Z needs to be comparable or we need to offset X/Y.
-    # JDs are huge. Let's subtract the mean to center the mesh near origin.
+        # Generate Mesh Geometry
+        # Using log_10 because C3 can vary significantly
+        # Scaling Z by 1000 for visibility in ParaView (otherwise days/dates values might dwarf it)
+        # Actually dates are JDs (~2.45e6), so Z needs to be comparable or we need to offset X/Y.
+        # JDs are huge. Let's subtract the mean to center the mesh near origin.
 
-    x_mean = np.mean(x_axis)
-    y_mean = np.mean(y_axis)
-    grid.x_axis -= x_mean
-    grid.y_axis -= y_mean
+        x_mean = np.mean(x_axis)
+        y_mean = np.mean(y_axis)
+        grid.x_axis -= x_mean
+        grid.y_axis -= y_mean
 
-    mesh.generate_mesh(z_scale=50.0, morph_type='linear')
+        mesh.generate_mesh(z_scale=50.0, morph_type='linear')
 
-    # Export
-    write_vtp('earth_mars_porkchop.vtp', mesh)
-    print(f"   • 3D Mesh saved to: earth_mars_porkchop.vtp")
+        # Export
+        write_vtp('earth_mars_porkchop.vtp', mesh)
+        print(f"   • 3D Mesh saved to: earth_mars_porkchop.vtp")
 
-    print("\n✅ Done.\n")
+        print("\n✅ Done.\n")
+
+    except (ValueError, OSError) as e:
+        print(f"\n❌ Error generating output files: {e}")
+        # Exit with error code so CI/CD knows something failed
+        import sys
+        sys.exit(1)
 
 if __name__ == "__main__":
     main()
