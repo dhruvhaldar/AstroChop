@@ -82,18 +82,12 @@ def lambert(r1_vec, r2_vec, dt, mu, tm=1, tol=1e-5, max_iter=50):
     cos_dnu = dot_prod / (r1 * r2)
     cos_dnu = np.clip(cos_dnu, -1.0, 1.0)
     
-    dnu = np.arccos(cos_dnu)
-    
-    if tm == -1:
-        dnu = 2 * np.pi - dnu
-        
     # Calculate A
-    denom = 1 - cos_dnu
-    # Prevent division by zero if dnu=0 (identical points)
-    # Using np.where to handle scalars/arrays safely
-    denom = np.where(denom == 0, 1e-12, denom)
-    
-    A = np.sin(dnu) * np.sqrt(r1 * r2 / denom)
+    # Optimization: A = sin(dnu) * sqrt(r1*r2 / (1-cos_dnu))
+    # Using half-angle identities and algebraic simplification:
+    # A = tm * sqrt(r1 * r2 * (1 + cos_dnu))
+    # This avoids expensive arccos/sin calls and handles the singularity at cos_dnu=1 safely.
+    A = tm * np.sqrt(r1 * r2 * (1 + cos_dnu))
     
     # Precompute r_sum as it is constant in the loop
     r_sum = r1 + r2
