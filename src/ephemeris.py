@@ -112,36 +112,16 @@ def get_ephemeris(body_name, jd):
         return np.array([x, c*y - s*z, s*y + c*z])
 
     # Perifocal vector
-    r_peri = np.array([xv, yv, 0.0])
-    v_peri = np.array([vxv, vyv, 0.0])
-    
-    # 3-1-3 rotation? 
-    # Usually: rotate by -w around Z, then -i around X, then -O around Z to go FROM Inertial TO Perifocal
-    # So to go FROM Perifocal TO Inertial:
-    # Rotate by -w (which is w) around Z? No.
-    # r_ECI = Rz(-O) Rx(-i) Rz(-w) r_peri
-    # Actually standard rotation matrix:
-    # r_ECI = Rz(-Omega) * Rx(-i) * Rz(-omega) * r_peri (if using Euler angles as defined typically)
-    # Wait, usually P is Rz(Omega) Rx(i) Rz(omega)?
-    # Let's apply rotations manually in sequence:
-    # 1. Rotate by -w around Z? No, we are in perifocal, so orbit plane.
-    # First rotation is argument of periapsis w in the plane.
-    # Actually, Rz(-w) * r_peri puts X axis aligned with node line?
-    
-    # To get to inertial:
-    # 1. Rotate by -w around Z (aligns periapsis with node?) -> No.
-    # r_node = Rz(-w) r_peri ?
-    # Let's check: x_peri is towards periapsis.
-    # We want to rotate so x axis is the ascending node.
-    # The angle from node to periapsis is w. So we rotate by -w.
-    
-    # Actually, let's use the standard rotation matrix.
-    # R3_w = [[cw, -sw, 0], [sw, cw, 0], [0,0,1]]
-    # R1_i = [[1, 0, 0], [0, ci, -si], [0, si, ci]]
-    # R3_O = [[cO, -sO, 0], [sO, cO, 0], [0,0,1]]
-    
-    # r_ECI = R3_O * R1_i * R3_w * r_peri
-    
+    # Handle both scalar and array cases
+    if np.ndim(xv) == 0:
+        r_peri = np.array([xv, yv, 0.0])
+        v_peri = np.array([vxv, vyv, 0.0])
+    else:
+        zeros = np.zeros_like(xv)
+        r_peri = np.stack([xv, yv, zeros]) # Shape (3, N)
+        v_peri = np.stack([vxv, vyv, zeros])
+
+    # Rotation Logic
     def R3(ang):
         c, s = np.cos(ang), np.sin(ang)
         return np.array([[c, -s, 0], [s, c, 0], [0, 0, 1]])
@@ -150,11 +130,17 @@ def get_ephemeris(body_name, jd):
         c, s = np.cos(ang), np.sin(ang)
         return np.array([[1, 0, 0], [0, c, -s], [0, s, c]])
         
-    M_rot = R3(O) @ R1(i) @ R3(w)
+    M_rot = R3(O) @ R1(i) @ R3(w) # (3, 3)
     
+    # Apply rotation
     r_vec = M_rot @ r_peri
     v_vec = M_rot @ v_peri
     
+    # If input was array (N,), return (N, 3) to be consistent
+    if np.ndim(xv) != 0:
+        r_vec = r_vec.T
+        v_vec = v_vec.T
+
     return r_vec, v_vec
 
 if __name__ == "__main__":
