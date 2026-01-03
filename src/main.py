@@ -43,6 +43,7 @@ def main():
         opt_arrival_date = ad[opt_arrival_idx]
         opt_c3 = C3[unraveled]
         opt_tof = TOF[unraveled]
+        opt_vinf = Vinf[unraveled]
 
         optimal_transfer = (opt_launch_date, opt_arrival_date)
 
@@ -50,6 +51,7 @@ def main():
         print(f"   • Launch:  {opt_launch_date.strftime('%Y-%m-%d')}")
         print(f"   • Arrival: {opt_arrival_date.strftime('%Y-%m-%d')} (TOF: {opt_tof:.1f} days / {opt_tof/30.44:.1f} months)")
         print(f"   • Energy:  {opt_c3:.2f} km²/s² (C3)")
+        print(f"   • Arr V_∞: {opt_vinf:.2f} km/s")
 
     except ValueError:
         # np.nanargmin raises ValueError if all values are NaN
@@ -59,7 +61,7 @@ def main():
 
     try:
         # Existing plotting
-        plot_title = f"Earth-Mars Porkchop Plot ({start_launch.year} Opportunity)"
+        plot_title = f"Earth-Mars Porkchop ({start_launch.year}): Min C3 = {opt_c3:.2f} km²/s²" if optimal_transfer else f"Earth-Mars Porkchop Plot ({start_launch.year} Opportunity)"
         plot_porkchop(ld, ad, C3, TOF, filename='astrochop.png', optimal_transfer=optimal_transfer, title=plot_title)
         print(f"   • Plot saved to: astrochop.png")
 
@@ -90,6 +92,7 @@ def main():
         # Export
         write_vtp('earth_mars_porkchop.vtp', mesh)
         print(f"   • 3D Mesh saved to: earth_mars_porkchop.vtp")
+        print(f"     (💡 Tip: Open this file with ParaView to explore the 3D energy landscape!)")
 
         print("\n✅ Done.\n")
 

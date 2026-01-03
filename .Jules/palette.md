@@ -11,3 +11,7 @@
 ## 2024-11-20 - [Data Visualization]
 **Learning:** For optimization problems, users struggle to map numerical best-values from the console to the visual heatmap.
 **Action:** Always explicitly mark the global optimum (e.g., with a star ⭐️) on the generated plot to bridge the gap between data and visualization.
+
+## 2024-05-20 - [Artifact Usability]
+**Learning:** Generated artifacts (like images) often get separated from the CLI log that produced them, losing context.
+**Action:** Embed critical optimization results (like min value) directly into the artifact title so it is self-describing and useful standalone.
