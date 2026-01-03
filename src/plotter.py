@@ -182,7 +182,7 @@ def plot_porkchop(launch_dates, arrival_dates, C3, TOF, filename='astrochop.png'
     
     # Plot C3 contours
     CS = ax.contour(X, Y, C3, levels=levels, colors='blue', linewidths=0.5)
-    ax.clabel(CS, inline=1, fontsize=8, fmt='%1.1f')
+    ax.clabel(CS, inline=1, fontsize=10, fmt='%1.1f')
     
     import matplotlib.dates as mdates
     
@@ -199,12 +199,12 @@ def plot_porkchop(launch_dates, arrival_dates, C3, TOF, filename='astrochop.png'
 
     # Line contours for C3 (thin, white/dark for contrast)
     CS = ax.contour(X_dates, Y_dates, C3, levels=levels, colors='white', linewidths=0.5, alpha=0.5)
-    ax.clabel(CS, inline=1, fontsize=8, fmt='%1.1f')
+    ax.clabel(CS, inline=1, fontsize=10, fmt='%1.1f')
 
     # Plot TOF (keep dashed red, maybe thicker or different color if needed)
     levels_tof = range(100, 1000, 50)
     CS2 = ax.contour(X_dates, Y_dates, TOF, levels=levels_tof, colors='red', linestyles='dashed', linewidths=1.0)
-    ax.clabel(CS2, inline=1, fontsize=8, fmt='%d d')
+    ax.clabel(CS2, inline=1, fontsize=10, fmt='%d d')
 
     # Grid
     ax.grid(True, linestyle=':', alpha=0.6)
