@@ -22,3 +22,8 @@
 **Vulnerability:** The `plot_porkchop` function lacked path validation, allowing writing images to arbitrary paths (e.g., `../../etc/passwd`).
 **Learning:** Consistency in security controls is key. While `mesh_exporter.py` was secured, `plotter.py` was not.
 **Prevention:** Reused the `os.path.realpath` + `os.path.commonpath` pattern from `mesh_exporter.py` and added file extension enforcement.
+
+## 2025-02-27 - [Log Injection via Filename]
+**Vulnerability:** Exceptions raised by `write_vtp` and `plot_porkchop` included the user-provided filename in the error message. If a filename contained newline characters (e.g., `test\n[CRITICAL] Pwned`), an attacker could forge log entries if these exceptions were logged by the calling application.
+**Learning:** Input validation must include checking for control characters in data that might be logged, especially file paths which can technically contain newlines in some filesystems (like Linux).
+**Prevention:** Explicitly validate filenames against a blacklist of control characters (like `\n`, `\r`) before processing or including them in error messages.

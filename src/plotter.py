@@ -230,6 +230,11 @@ def plot_porkchop(launch_dates, arrival_dates, C3, TOF, filename='astrochop.png'
     ax.set_ylabel('Arrival Date')
     
     # Security: Prevent path traversal and enforce extension (similar to mesh_exporter.py)
+    # Security: Log Injection Prevention
+    # Check for control characters (e.g., newline) in the filename to prevent log spoofing
+    if any(char in filename for char in ['\n', '\r']):
+        raise ValueError("Security Error: Filename contains invalid control characters.")
+
     real_path = os.path.realpath(filename)
     cwd = os.path.realpath(os.getcwd())
 

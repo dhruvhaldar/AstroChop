@@ -13,6 +13,11 @@ def write_vtp(filename, mesh):
     Raises:
         ValueError: If mesh is not generated or filename has path traversal attempt.
     """
+    # Security: Log Injection Prevention
+    # Check for control characters (e.g., newline) in the filename to prevent log spoofing
+    if any(char in filename for char in ['\n', '\r']):
+        raise ValueError("Security Error: Filename contains invalid control characters.")
+
     # Security Check: Prevent path traversal and Symlink attacks
     # Ensure the file is written within the current working directory
     # Resolve symlinks to find the actual destination
