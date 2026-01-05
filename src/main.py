@@ -45,7 +45,8 @@ def main():
         opt_tof = TOF[unraveled]
         opt_vinf = Vinf[unraveled]
 
-        optimal_transfer = (opt_launch_date, opt_arrival_date)
+        # Pass rich data for annotation (dates, c3, tof)
+        optimal_transfer = (opt_launch_date, opt_arrival_date, opt_c3, opt_tof)
 
         print(f"\n🏆 Optimal Transfer Found:")
         print(f"   • Launch:  {opt_launch_date.strftime('%Y-%m-%d')}")
