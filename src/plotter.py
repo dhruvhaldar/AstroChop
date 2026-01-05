@@ -211,13 +211,28 @@ def plot_porkchop(launch_dates, arrival_dates, C3, TOF, filename='astrochop.png'
 
     # Plot optimal transfer marker if provided
     if optimal_transfer:
-        opt_launch, opt_arrival = optimal_transfer
+        # Support both 2-tuple (dates) and 4-tuple (dates + values)
+        if len(optimal_transfer) == 4:
+            opt_launch, opt_arrival, opt_c3, opt_tof = optimal_transfer
+            label_text = f"$C_3$: {opt_c3:.1f}\nTOF: {opt_tof:.0f}d"
+        else:
+            opt_launch, opt_arrival = optimal_transfer
+            label_text = None
+
         # Convert to matplotlib date format
         opt_launch_num = mdates.date2num(opt_launch)
         opt_arrival_num = mdates.date2num(opt_arrival)
 
         ax.plot(opt_launch_num, opt_arrival_num, marker='*', color='gold',
                 markersize=15, markeredgecolor='black', label='Optimal Transfer', zorder=10)
+
+        if label_text:
+            ax.annotate(label_text, (opt_launch_num, opt_arrival_num),
+                        xytext=(15, 15), textcoords='offset points',
+                        bbox=dict(boxstyle="round,pad=0.4", fc="white", ec="gold", alpha=0.9),
+                        arrowprops=dict(arrowstyle="->", connectionstyle="arc3,rad=0.2", color="black"),
+                        fontsize=9, zorder=11)
+
         ax.legend(loc='upper right')
 
     ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
