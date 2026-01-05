@@ -92,6 +92,9 @@ def lambert(r1_vec, r2_vec, dt, mu, tm=1, tol=1e-5, max_iter=50):
     # Precompute r_sum as it is constant in the loop
     r_sum = r1 + r2
 
+    # Optimization: Precompute inverse sqrt(mu) to use multiplication instead of division
+    inv_sqrt_mu = 1.0 / np.sqrt(mu)
+
     # Solver state
     # We solve for z.
     # Initial guesses
@@ -114,8 +117,14 @@ def lambert(r1_vec, r2_vec, dt, mu, tm=1, tol=1e-5, max_iter=50):
         t_val = np.full_like(z_vals, np.nan)
         
         if np.any(valid):
-            x_val = np.sqrt(y_val[valid] / C[valid])
-            t_val[valid] = (x_val**3 * S[valid] + A[valid] * np.sqrt(y_val[valid])) / np.sqrt(mu)
+            # Optimization: Reuse sqrt(C) and avoid sqrt division
+            # x = sqrt(y/C) = sqrt(y)/sqrt(C)
+            sqrt_y = np.sqrt(y_val[valid])
+            x_val = sqrt_y / sqrt_C[valid]
+
+            # t = (x^3 * S + A * sqrt(y)) / sqrt(mu)
+            # t = (x^3 * S + A * sqrt(y)) * inv_sqrt_mu
+            t_val[valid] = (x_val**3 * S[valid] + A[valid] * sqrt_y) * inv_sqrt_mu
 
         return t_val
 
