@@ -112,8 +112,10 @@ def get_ephemeris(body_name, jd):
         return np.array([x, c*y - s*z, s*y + c*z])
 
     # Perifocal vector
-    r_peri = np.array([xv, yv, 0.0])
-    v_peri = np.array([vxv, vyv, 0.0])
+    # Handle array broadcasting for z-component
+    zeros = np.zeros_like(xv)
+    r_peri = np.array([xv, yv, zeros])
+    v_peri = np.array([vxv, vyv, zeros])
     
     # 3-1-3 rotation? 
     # Usually: rotate by -w around Z, then -i around X, then -O around Z to go FROM Inertial TO Perifocal
