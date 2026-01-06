@@ -180,17 +180,11 @@ def plot_porkchop(launch_dates, arrival_dates, C3, TOF, filename='astrochop.png'
     # Contour levels for C3
     levels = np.linspace(0, 50, 26) # 0 to 50 km^2/s^2
     
-    # Plot C3 contours
-    CS = ax.contour(X, Y, C3, levels=levels, colors='blue', linewidths=0.5)
-    ax.clabel(CS, inline=1, fontsize=10, fmt='%1.1f')
-    
     import matplotlib.dates as mdates
     
     # We need to replot using date numbers
     X_dates = mdates.date2num(np.meshgrid(launch_dates, arrival_dates)[0])
     Y_dates = mdates.date2num(np.meshgrid(launch_dates, arrival_dates)[1])
-    
-    ax.clear()
     
     # Filled contours for C3
     CSF = ax.contourf(X_dates, Y_dates, C3, levels=levels, cmap='viridis')
@@ -211,8 +205,11 @@ def plot_porkchop(launch_dates, arrival_dates, C3, TOF, filename='astrochop.png'
 
     # Plot optimal transfer marker if provided
     if optimal_transfer:
-        # Support both 2-tuple (dates) and 4-tuple (dates + values)
-        if len(optimal_transfer) == 4:
+        # Support 2-tuple (dates), 4-tuple (dates + values), or 5-tuple (dates + values + v_inf)
+        if len(optimal_transfer) == 5:
+            opt_launch, opt_arrival, opt_c3, opt_tof, opt_vinf = optimal_transfer
+            label_text = f"$C_3$: {opt_c3:.1f}\nTOF: {opt_tof:.0f}d\nArr $V_\\infty$: {opt_vinf:.2f}"
+        elif len(optimal_transfer) == 4:
             opt_launch, opt_arrival, opt_c3, opt_tof = optimal_transfer
             label_text = f"$C_3$: {opt_c3:.1f}\nTOF: {opt_tof:.0f}d"
         else:
