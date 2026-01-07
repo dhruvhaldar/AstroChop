@@ -19,14 +19,16 @@ def stumpff_c_s(z):
         z_pos = z[pos]
         sqrt_z = np.sqrt(z_pos)
         c[pos] = (1 - np.cos(sqrt_z)) / z_pos
-        s[pos] = (sqrt_z - np.sin(sqrt_z)) / (sqrt_z**3)
+        # Optimization: Use multiplication instead of power for speed
+        s[pos] = (sqrt_z - np.sin(sqrt_z)) / (z_pos * sqrt_z)
 
     # Negative z
     if np.any(neg):
         z_neg = z[neg]
         sqrt_mz = np.sqrt(-z_neg)
         c[neg] = (np.cosh(sqrt_mz) - 1) / (-z_neg)
-        s[neg] = (np.sinh(sqrt_mz) - sqrt_mz) / (sqrt_mz**3)
+        # Optimization: Use multiplication (z_neg is negative, so -z_neg is positive squared mag)
+        s[neg] = (np.sinh(sqrt_mz) - sqrt_mz) / (-z_neg * sqrt_mz)
 
     # Zero case
     if np.any(zero):
@@ -124,7 +126,9 @@ def lambert(r1_vec, r2_vec, dt, mu, tm=1, tol=1e-5, max_iter=50):
 
             # t = (x^3 * S + A * sqrt(y)) / sqrt(mu)
             # t = (x^3 * S + A * sqrt(y)) * inv_sqrt_mu
-            t_val[valid] = (x_val**3 * S[valid] + A[valid] * sqrt_y) * inv_sqrt_mu
+            # Optimization: Use multiplication instead of power
+            x3 = x_val * x_val * x_val
+            t_val[valid] = (x3 * S[valid] + A[valid] * sqrt_y) * inv_sqrt_mu
 
         return t_val
 
