@@ -211,10 +211,15 @@ def plot_porkchop(launch_dates, arrival_dates, C3, TOF, filename='astrochop.png'
                 markersize=15, markeredgecolor='black', label='Optimal Transfer', zorder=10)
 
         if label_text:
+            # Enhance UX: Add Launch/Arrival dates to annotation and use nicer colors
+            launch_str = opt_launch.strftime('%Y-%m-%d')
+            arrival_str = opt_arrival.strftime('%Y-%m-%d')
+            label_text = f"Launch: {launch_str}\nArrival: {arrival_str}\n" + label_text
+
             ax.annotate(label_text, (opt_launch_num, opt_arrival_num),
-                        xytext=(15, 15), textcoords='offset points',
-                        bbox=dict(boxstyle="round,pad=0.4", fc="white", ec="gold", alpha=0.9),
-                        arrowprops=dict(arrowstyle="->", connectionstyle="arc3,rad=0.2", color="black"),
+                        xytext=(20, 20), textcoords='offset points',
+                        bbox=dict(boxstyle="round,pad=0.5", fc="#FFFFE0", ec="#FFD700", alpha=0.95), # Light yellow bg, Gold edge
+                        arrowprops=dict(arrowstyle="->", connectionstyle="arc3,rad=0.2", color="#444444"),
                         fontsize=9, zorder=11)
 
         ax.legend(loc='upper right')
