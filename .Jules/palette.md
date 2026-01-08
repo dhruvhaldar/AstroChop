@@ -15,3 +15,7 @@
 ## 2024-05-20 - [Artifact Usability]
 **Learning:** Generated artifacts (like images) often get separated from the CLI log that produced them, losing context.
 **Action:** Embed critical optimization results (like min value) directly into the artifact title so it is self-describing and useful standalone.
+
+## 2024-05-24 - [Scientific Visualization]
+**Learning:** In scientific plots, missing units in annotations forces users to look up context elsewhere or guess.
+**Action:** Always include units (e.g., `km/s`, `days`) directly in data annotations to make the artifact self-contained and unambiguous.
