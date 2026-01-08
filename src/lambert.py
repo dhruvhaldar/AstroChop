@@ -1,6 +1,10 @@
 import numpy as np
 import warnings
 
+# Precompute constant
+SQRT2 = np.sqrt(2.0)
+INV_3 = 1.0 / 3.0
+
 def stumpff_c_s(z):
     """
     Vectorized Stumpff C and S functions computed together.
@@ -43,6 +47,99 @@ def stumpff_c(z):
 
 def stumpff_s(z):
     return stumpff_c_s(z)[1]
+
+def _compute_term_ratio(z):
+    """
+    Computes auxiliary variables for Lambert solver using half-angle formulas.
+    This avoids expensive Stumpff function calls and intermediate square roots.
+
+    Returns:
+        term: -sqrt(2) * cos(sqrt(z)/2)  [for z>0]
+              -sqrt(2) * cosh(sqrt(-z)/2) [for z<0]
+              Used to compute y = r_sum + A * term.
+
+        ratio: S(z) / C(z)^1.5
+               Used to compute t.
+    """
+    term = np.zeros_like(z, dtype=float)
+    ratio = np.zeros_like(z, dtype=float)
+
+    pos = z > 0
+    neg = z < 0
+
+    # 1. Compute Term (Stable everywhere using standard functions)
+    if np.any(pos):
+        zp = z[pos]
+        # For z=0, sqrt(0)=0, cos(0)=1. term = -sqrt(2). Correct.
+        term[pos] = -SQRT2 * np.cos(np.sqrt(zp) * 0.5)
+
+    if np.any(neg):
+        zn = -z[neg]
+        term[neg] = -SQRT2 * np.cosh(np.sqrt(zn) * 0.5)
+
+    # Zero case for term (cos(0) = 1)
+    zero = z == 0
+    if np.any(zero):
+        term[zero] = -SQRT2
+        # Ratio for zero is handled in series or separately, but series covers it.
+        # However, for exact zero, direct assignment is faster/cleaner.
+        ratio[zero] = SQRT2 * INV_3
+
+    # 2. Compute Ratio
+    # Regime split for stability: Use series for small z to avoid cancellation
+    # Threshold 0.1 is standard, but 0.2 covers more ground safely given degree 5 series.
+    is_small = (np.abs(z) < 0.1) & (~zero)
+    is_large = ~is_small & ~zero
+
+    # Large z: Use half-angle explicit formulas
+    large_pos = is_large & pos
+    if np.any(large_pos):
+        zp = z[large_pos]
+        sz = np.sqrt(zp)
+        sz_2 = sz * 0.5
+        sa = np.sin(sz_2)
+        ca = np.cos(sz_2)
+        sa3 = sa * sa * sa
+        ratio[large_pos] = (sz - 2 * sa * ca) / (2 * SQRT2 * sa3)
+
+    large_neg = is_large & neg
+    if np.any(large_neg):
+        zn = -z[large_neg]
+        sz = np.sqrt(zn)
+        sz_2 = sz * 0.5
+        sa = np.sinh(sz_2)
+        ca = np.cosh(sz_2)
+        sa3 = sa * sa * sa
+        ratio[large_neg] = (2 * sa * ca - sz) / (2 * SQRT2 * sa3)
+
+    # Small z: Use Single Polynomial Series for Ratio
+    # Derived from S(z)/C(z)^1.5 Taylor expansions.
+    # Ratio(z) = sqrt(2)/3 * (1 + 3/40 z + 17/4480 z^2 + ...)
+    # Coefficients for Ratio / (sqrt(2)/3):
+    # c0 = 1.0
+    # c1 = 3/40 = 0.075
+    # c2 = 17/4480 ~ 0.0037946
+    # c3 ~ 1.618e-4
+    # c4 ~ 6.24e-6
+    # c5 ~ 2.25e-7
+    if np.any(is_small):
+        zs = z[is_small]
+
+        # Horner's method for Ratio / (sqrt(2)/3)
+        # Using computed coefficients for z (not -z, coefficients include signs appropriately)
+        # The series was derived for Ratio(z).
+        # Coefficients: [1.0, 0.075, 0.00379464, 1.6183e-4, 6.2409e-6, 2.2477e-7]
+
+        val = 2.24778741e-07
+        val = val * zs + 6.24091078e-06
+        val = val * zs + 1.61830357e-04
+        val = val * zs + 3.79464286e-03
+        val = val * zs + 7.50000000e-02
+        val = val * zs + 1.0
+
+        ratio[is_small] = (SQRT2 * INV_3) * val
+
+    return term, ratio
 
 def lambert(r1_vec, r2_vec, dt, mu, tm=1, tol=1e-5, max_iter=50):
     """
@@ -105,12 +202,9 @@ def lambert(r1_vec, r2_vec, dt, mu, tm=1, tol=1e-5, max_iter=50):
     
     # Helper to compute Time from z
     def compute_t(z_vals):
-        C, S = stumpff_c_s(z_vals)
+        # Optimization: Use half-angle formulas to avoid stumpff_c_s and explicit sqrt(C)
+        term, ratio = _compute_term_ratio(z_vals)
         
-        # y = r_sum + A * (z*S - 1)/sqrt(C)
-        
-        sqrt_C = np.sqrt(C)
-        term = (z_vals * S - 1) / sqrt_C
         y_val = r_sum + A * term
         
         # Valid check
@@ -119,16 +213,12 @@ def lambert(r1_vec, r2_vec, dt, mu, tm=1, tol=1e-5, max_iter=50):
         t_val = np.full_like(z_vals, np.nan)
         
         if np.any(valid):
-            # Optimization: Reuse sqrt(C) and avoid sqrt division
-            # x = sqrt(y/C) = sqrt(y)/sqrt(C)
-            sqrt_y = np.sqrt(y_val[valid])
-            x_val = sqrt_y / sqrt_C[valid]
+            y_v = y_val[valid]
+            rat_v = ratio[valid]
 
-            # t = (x^3 * S + A * sqrt(y)) / sqrt(mu)
-            # t = (x^3 * S + A * sqrt(y)) * inv_sqrt_mu
-            # Optimization: Use multiplication instead of power
-            x3 = x_val * x_val * x_val
-            t_val[valid] = (x3 * S[valid] + A[valid] * sqrt_y) * inv_sqrt_mu
+            # t = sqrt(y) * (y * ratio + A) / sqrt(mu)
+            sqrt_y = np.sqrt(y_v)
+            t_val[valid] = sqrt_y * (y_v * rat_v + A[valid]) * inv_sqrt_mu
 
         return t_val
 
@@ -173,9 +263,9 @@ def lambert(r1_vec, r2_vec, dt, mu, tm=1, tol=1e-5, max_iter=50):
     z = z1
 
     # Compute v vectors
-    C, S = stumpff_c_s(z)
-    sqrt_C = np.sqrt(C)
-    y = r1 + r2 + A * (z * S - 1) / sqrt_C
+    # Optimization: We only need 'term' to compute 'y'. No need for S, C, or sqrt_C.
+    term, _ = _compute_term_ratio(z)
+    y = r1 + r2 + A * term
     
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
