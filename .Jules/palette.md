@@ -19,3 +19,7 @@
 ## 2024-05-24 - [Scientific Visualization]
 **Learning:** In scientific plots, missing units in annotations forces users to look up context elsewhere or guess.
 **Action:** Always include units (e.g., `km/s`, `days`) directly in data annotations to make the artifact self-contained and unambiguous.
+
+## 2024-12-14 - [Cognitive Load]
+**Learning:** Users often perform mental math to convert between related metrics (e.g., Energy vs. Delta-V).
+**Action:** Explicitly display derived metrics (like Dep $V_\infty$ alongside $C_3$) in summary views to reduce cognitive load and bridge different mental models.
