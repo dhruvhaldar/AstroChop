@@ -141,6 +141,42 @@ def _compute_term_ratio(z):
 
     return term, ratio
 
+def _compute_t_internal(z_vals, r_sum, A, inv_sqrt_mu):
+    """
+    Internal helper to compute Time of Flight from z.
+    Separated to support calculating on active subsets.
+    """
+    # Optimization: Use half-angle formulas to avoid stumpff_c_s and explicit sqrt(C)
+    term, ratio = _compute_term_ratio(z_vals)
+
+    y_val = r_sum + A * term
+
+    # Valid check
+    valid = y_val > 0
+
+    t_val = np.full_like(z_vals, np.nan)
+
+    if np.any(valid):
+        y_v = y_val[valid]
+        rat_v = ratio[valid]
+
+        # For subset calculation, we need to slice A for valid entries too
+        if A.shape != ():  # Check if A is an array
+            # If A matches z_vals shape (broadcasted), we slice it.
+            # If A is scalar or (1,1), we don't.
+            # But here z_vals is likely a subset (active), so r_sum and A passed in
+            # must already be subsets matching z_vals shape.
+            # So we just slice with [valid].
+            A_v = A[valid]
+        else:
+            A_v = A
+
+        # t = sqrt(y) * (y * ratio + A) / sqrt(mu)
+        sqrt_y = np.sqrt(y_v)
+        t_val[valid] = sqrt_y * (y_v * rat_v + A_v) * inv_sqrt_mu
+
+    return t_val
+
 def lambert(r1_vec, r2_vec, dt, mu, tm=1, tol=1e-5, max_iter=50):
     """
     Solves Lambert's problem using Universal Variables (Vectorized).
@@ -182,10 +218,6 @@ def lambert(r1_vec, r2_vec, dt, mu, tm=1, tol=1e-5, max_iter=50):
     cos_dnu = np.clip(cos_dnu, -1.0, 1.0)
     
     # Calculate A
-    # Optimization: A = sin(dnu) * sqrt(r1*r2 / (1-cos_dnu))
-    # Using half-angle identities and algebraic simplification:
-    # A = tm * sqrt(r1 * r2 * (1 + cos_dnu))
-    # This avoids expensive arccos/sin calls and handles the singularity at cos_dnu=1 safely.
     A = tm * np.sqrt(r1 * r2 * (1 + cos_dnu))
     
     # Precompute r_sum as it is constant in the loop
@@ -200,70 +232,92 @@ def lambert(r1_vec, r2_vec, dt, mu, tm=1, tol=1e-5, max_iter=50):
     z0 = np.zeros_like(dt, dtype=float)
     z1 = np.ones_like(dt, dtype=float) # Guess z=1
     
-    # Helper to compute Time from z
-    def compute_t(z_vals):
-        # Optimization: Use half-angle formulas to avoid stumpff_c_s and explicit sqrt(C)
-        term, ratio = _compute_term_ratio(z_vals)
-        
-        y_val = r_sum + A * term
-        
-        # Valid check
-        valid = y_val > 0
-        
-        t_val = np.full_like(z_vals, np.nan)
-        
-        if np.any(valid):
-            y_v = y_val[valid]
-            rat_v = ratio[valid]
-
-            # t = sqrt(y) * (y * ratio + A) / sqrt(mu)
-            sqrt_y = np.sqrt(y_v)
-            t_val[valid] = sqrt_y * (y_v * rat_v + A[valid]) * inv_sqrt_mu
-
-        return t_val
-
     # Initialize Secant
-    t0 = compute_t(z0)
-    t1 = compute_t(z1)
+    # First iterations on full array
+    t0 = _compute_t_internal(z0, r_sum, A, inv_sqrt_mu)
+    t1 = _compute_t_internal(z1, r_sum, A, inv_sqrt_mu)
+
+    # Convergence mask (initially all False)
+    converged = np.zeros_like(dt, dtype=bool)
 
     for _ in range(max_iter):
         diff = t1 - dt
-        # Check convergence (ignoring NaNs)
-        valid_diff = diff[~np.isnan(diff)]
-        if len(valid_diff) > 0 and np.all(np.abs(valid_diff) < tol):
-            # Also check that we don't have pending NaNs that could be resolved?
-            # If everything valid is converged, we stop.
+
+        # Check convergence
+        not_nan = ~np.isnan(diff)
+        just_converged = not_nan & (np.abs(diff) < tol)
+        converged |= just_converged
+
+        # Active set: Not converged
+        active = ~converged
+
+        if not np.any(active):
             break
 
-        # Secant step
-        denom_sec = t1 - t0
-        # handle zero denom
+        # Subsetting for active calculations
+        z0_a = z0[active]
+        z1_a = z1[active]
+        t0_a = t0[active]
+        t1_a = t1[active]
+        diff_a = diff[active]
+
+        denom_sec = t1_a - t0_a
         denom_sec[denom_sec == 0] = 1e-12
         
-        dz = -diff * (z1 - z0) / denom_sec
+        dz = -diff_a * (z1_a - z0_a) / denom_sec
+        z_new_a = z1_a + dz
+
+        # Update z1 for active
+        z0[active] = z1_a
+        t0[active] = t1_a
+        z1[active] = z_new_a
         
-        z_new = z1 + dz
+        # Compute t1 only for active
+        # Slice static arrays to match active subset
+        r_sum_a = r_sum[active]
+        A_a = A[active]
         
-        # Update
-        z0 = z1
-        t0 = t1
-        z1 = z_new
-        t1 = compute_t(z1)
+        t_val_a = _compute_t_internal(z_new_a, r_sum_a, A_a, inv_sqrt_mu)
+        t1[active] = t_val_a
         
-        # If t1 became NaN (invalid y), try to recover?
-        nan_mask = np.isnan(t1)
-        if np.any(nan_mask):
-             # Simple recovery: take midpoint of previous valid z0
-             # We assume z0 was valid. If z0 was also nan, we can't help much.
-             # Only update those that are NaN
-             z1[nan_mask] = (z0[nan_mask] + z0[nan_mask])/2.0
-             t1 = compute_t(z1)
+        # Recovery for NaNs in active set
+        nan_mask_sub = np.isnan(t_val_a)
+        if np.any(nan_mask_sub):
+            # If t1 becomes NaN, it means the guess z_new_a yielded invalid y (< 0).
+            # Standard recovery is to bisect or reset.
+            # Here we reset z1 to z0 (which was the previous valid step).
+            # z0[active] holds the previous z1.
+            # We must identify which indices in the full array correspond to these NaNs.
+            # Or simpler: we just update the 'z1' array values at these active+nan positions.
+
+            # Identify elements in 'z_new_a' that are bad
+            z0_rec = z0_a[nan_mask_sub] # Previous valid values
+
+            # We want to reset z1 to z0 for these bad points.
+            # Since we just updated z1[active] = z_new_a, we need to overwrite the bad ones.
+            # But we can't easily index into z1[active][nan_mask_sub] assignment-wise in one go
+            # if we didn't keep the index mapping.
+            # Actually we can:
+            # We need to write into z1.
+            # The indices in z1 are 'active' masked by 'nan_mask_sub'.
+            # It's tricky to construct a boolean mask for the full array from nested masks.
+            # Full mask = active AND (t1 is nan)
+
+            # Since we updated t1[active], we can check t1 again?
+            # t1 has been updated. The NaNs are there.
+            full_nan_mask = active & np.isnan(t1)
+
+            if np.any(full_nan_mask):
+                # Reset z1 to z0 for these points
+                z1[full_nan_mask] = z0[full_nan_mask]
+
+                # We also need to recompute t1 for these points (which is t0)
+                t1[full_nan_mask] = t0[full_nan_mask]
 
     # Final z is z1
     z = z1
 
     # Compute v vectors
-    # Optimization: We only need 'term' to compute 'y'. No need for S, C, or sqrt_C.
     term, _ = _compute_term_ratio(z)
     y = r1 + r2 + A * term
     
