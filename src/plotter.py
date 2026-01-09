@@ -195,10 +195,12 @@ def plot_porkchop(launch_dates, arrival_dates, C3, TOF, filename='astrochop.png'
         # Support 2-tuple (dates), 4-tuple (dates + values), or 5-tuple (dates + values + v_inf)
         if len(optimal_transfer) == 5:
             opt_launch, opt_arrival, opt_c3, opt_tof, opt_vinf = optimal_transfer
-            label_text = f"$C_3$: {opt_c3:.1f} km$^2$/s$^2$\nTOF: {opt_tof:.0f} days\nArr $V_\\infty$: {opt_vinf:.2f} km/s"
+            dep_vinf = np.sqrt(opt_c3)
+            label_text = f"$C_3$: {opt_c3:.1f} km$^2$/s$^2$\nDep $V_\\infty$: {dep_vinf:.2f} km/s\nArr $V_\\infty$: {opt_vinf:.2f} km/s\nTOF: {opt_tof:.0f} days"
         elif len(optimal_transfer) == 4:
             opt_launch, opt_arrival, opt_c3, opt_tof = optimal_transfer
-            label_text = f"$C_3$: {opt_c3:.1f} km$^2$/s$^2$\nTOF: {opt_tof:.0f} days"
+            dep_vinf = np.sqrt(opt_c3)
+            label_text = f"$C_3$: {opt_c3:.1f} km$^2$/s$^2$\nDep $V_\\infty$: {dep_vinf:.2f} km/s\nTOF: {opt_tof:.0f} days"
         else:
             opt_launch, opt_arrival = optimal_transfer
             label_text = None

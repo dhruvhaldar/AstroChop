@@ -52,6 +52,7 @@ def main():
         print(f"   • Launch:  {opt_launch_date.strftime('%Y-%m-%d')}")
         print(f"   • Arrival: {opt_arrival_date.strftime('%Y-%m-%d')} (TOF: {opt_tof:.1f} days / {opt_tof/30.44:.1f} months)")
         print(f"   • Energy:  {opt_c3:.2f} km²/s² (C3)")
+        print(f"   • Dep V_∞: {np.sqrt(opt_c3):.2f} km/s")
         print(f"   • Arr V_∞: {opt_vinf:.2f} km/s")
 
     except ValueError:
