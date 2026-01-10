@@ -88,11 +88,18 @@ def _compute_term_ratio(z):
     # 2. Compute Ratio
     # Regime split for stability: Use series for small z to avoid cancellation
     # Threshold 0.1 is standard, but 0.2 covers more ground safely given degree 5 series.
-    is_small = (np.abs(z) < 0.1) & (~zero)
-    is_large = ~is_small & ~zero
+
+    # Optimization: Avoid np.abs(z) allocation by using direct comparison
+    large_pos = z >= 0.1
+    large_neg = z <= -0.1
+
+    # is_small = ~(large_pos | large_neg | zero)
+    # But since we use is_small only for series, and large_pos/neg for others,
+    # we can construct is_small efficiently.
+    # Note: large_pos implies pos (z>0), large_neg implies neg (z<0).
+    # So we don't need 'is_large & pos' anymore, just 'large_pos'.
 
     # Large z: Use half-angle explicit formulas
-    large_pos = is_large & pos
     if np.any(large_pos):
         zp = z[large_pos]
         sz = np.sqrt(zp)
@@ -102,7 +109,6 @@ def _compute_term_ratio(z):
         sa3 = sa * sa * sa
         ratio[large_pos] = (sz - 2 * sa * ca) / (2 * SQRT2 * sa3)
 
-    large_neg = is_large & neg
     if np.any(large_neg):
         zn = -z[large_neg]
         sz = np.sqrt(zn)
@@ -111,6 +117,10 @@ def _compute_term_ratio(z):
         ca = np.cosh(sz_2)
         sa3 = sa * sa * sa
         ratio[large_neg] = (2 * sa * ca - sz) / (2 * SQRT2 * sa3)
+
+    # Small z: Use Single Polynomial Series for Ratio
+    # Exclude zero, large_pos, large_neg
+    is_small = ~(large_pos | large_neg | zero)
 
     # Small z: Use Single Polynomial Series for Ratio
     # Derived from S(z)/C(z)^1.5 Taylor expansions.
@@ -244,8 +254,9 @@ def lambert(r1_vec, r2_vec, dt, mu, tm=1, tol=1e-5, max_iter=50):
         diff = t1 - dt
 
         # Check convergence
-        not_nan = ~np.isnan(diff)
-        just_converged = not_nan & (np.abs(diff) < tol)
+        # Optimization: removed redundant not_nan check.
+        # np.abs(diff) < tol will be False if diff is NaN.
+        just_converged = (np.abs(diff) < tol)
         converged |= just_converged
 
         # Active set: Not converged
