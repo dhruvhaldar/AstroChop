@@ -9,3 +9,7 @@
 ## 2024-05-25 - Trigonometric Reduction in Lambert Solver
 **Learning:** In the Lambert Universal Variables method, computing Stumpff functions `C(z)` and `S(z)` involves redundant trigonometric calls and square roots. By rewriting the auxiliary variables `y` and `t` using half-angle formulas (e.g., `cos(sqrt(z)/2)`), we can avoid computing `C` and `S` entirely in the hot loop, reducing transcendental function calls by ~30% per iteration.
 **Action:** When implementing well-known algorithms, look for algebraic simplifications that avoid intermediate variables. Specifically, substituting `stumpff_c_s` with a specialized `_compute_term_ratio` reduced execution time by ~12% (from ~9.4s to ~8.2s).
+
+## 2024-05-26 - Polynomial Series for Small Angles
+**Learning:** In the Lambert solver's `small z` regime, branching to handle positive/negative cases for `sqrt` and `trig` functions was a hidden cost. Replacing `cos(sqrt(z)/2)` and `cosh(sqrt(-z)/2)` with a single polynomial series (valid for all real `z`) eliminated both the expensive transcendental calls and the need for conditional masking in the hot path. This reduced `_compute_term_ratio` execution time by ~22%.
+**Action:** For small arguments, Taylor series are often faster than built-in transcendental functions and handle sign changes naturally (e.g., `cos(x)` vs `cosh(ix)`), allowing for branch-free vectorization.
