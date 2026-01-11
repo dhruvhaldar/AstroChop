@@ -53,6 +53,9 @@ def _compute_term_ratio(z):
     Computes auxiliary variables for Lambert solver using half-angle formulas.
     This avoids expensive Stumpff function calls and intermediate square roots.
 
+    Optimized to share transcendental calculations (sqrt/cos/cosh) in large regimes
+    and use polynomial series for both term and ratio in small regimes.
+
     Returns:
         term: -sqrt(2) * cos(sqrt(z)/2)  [for z>0]
               -sqrt(2) * cosh(sqrt(-z)/2) [for z<0]
@@ -64,90 +67,78 @@ def _compute_term_ratio(z):
     term = np.zeros_like(z, dtype=float)
     ratio = np.zeros_like(z, dtype=float)
 
-    pos = z > 0
-    neg = z < 0
-
-    # 1. Compute Term (Stable everywhere using standard functions)
-    if np.any(pos):
-        zp = z[pos]
-        # For z=0, sqrt(0)=0, cos(0)=1. term = -sqrt(2). Correct.
-        term[pos] = -SQRT2 * np.cos(np.sqrt(zp) * 0.5)
-
-    if np.any(neg):
-        zn = -z[neg]
-        term[neg] = -SQRT2 * np.cosh(np.sqrt(zn) * 0.5)
-
-    # Zero case for term (cos(0) = 1)
-    zero = z == 0
-    if np.any(zero):
-        term[zero] = -SQRT2
-        # Ratio for zero is handled in series or separately, but series covers it.
-        # However, for exact zero, direct assignment is faster/cleaner.
-        ratio[zero] = SQRT2 * INV_3
-
-    # 2. Compute Ratio
-    # Regime split for stability: Use series for small z to avoid cancellation
-    # Threshold 0.1 is standard, but 0.2 covers more ground safely given degree 5 series.
-
-    # Optimization: Avoid np.abs(z) allocation by using direct comparison
+    # 1. Large Positive Regime (z >= 0.1)
     large_pos = z >= 0.1
-    large_neg = z <= -0.1
-
-    # is_small = ~(large_pos | large_neg | zero)
-    # But since we use is_small only for series, and large_pos/neg for others,
-    # we can construct is_small efficiently.
-    # Note: large_pos implies pos (z>0), large_neg implies neg (z<0).
-    # So we don't need 'is_large & pos' anymore, just 'large_pos'.
-
-    # Large z: Use half-angle explicit formulas
     if np.any(large_pos):
         zp = z[large_pos]
         sz = np.sqrt(zp)
         sz_2 = sz * 0.5
         sa = np.sin(sz_2)
         ca = np.cos(sz_2)
+
+        # Term: -sqrt(2) * cos(sqrt(z)/2)
+        term[large_pos] = -SQRT2 * ca
+
+        # Ratio: (sz - 2*sa*ca) / (2*sqrt(2)*sa^3)
         sa3 = sa * sa * sa
         ratio[large_pos] = (sz - 2 * sa * ca) / (2 * SQRT2 * sa3)
 
+    # 2. Large Negative Regime (z <= -0.1)
+    large_neg = z <= -0.1
     if np.any(large_neg):
         zn = -z[large_neg]
         sz = np.sqrt(zn)
         sz_2 = sz * 0.5
         sa = np.sinh(sz_2)
         ca = np.cosh(sz_2)
+
+        # Term: -sqrt(2) * cosh(sqrt(-z)/2)
+        term[large_neg] = -SQRT2 * ca
+
+        # Ratio: (2*sa*ca - sz) / (2*sqrt(2)*sa^3)
         sa3 = sa * sa * sa
         ratio[large_neg] = (2 * sa * ca - sz) / (2 * SQRT2 * sa3)
 
-    # Small z: Use Single Polynomial Series for Ratio
-    # Exclude zero, large_pos, large_neg
-    is_small = ~(large_pos | large_neg | zero)
+    # 3. Small Regime (|z| < 0.1)
+    # Use series for both Term and Ratio.
+    # This avoids sqrt, cos, cosh, and branching for small z.
+    is_small = ~(large_pos | large_neg)
 
-    # Small z: Use Single Polynomial Series for Ratio
-    # Derived from S(z)/C(z)^1.5 Taylor expansions.
-    # Ratio(z) = sqrt(2)/3 * (1 + 3/40 z + 17/4480 z^2 + ...)
-    # Coefficients for Ratio / (sqrt(2)/3):
-    # c0 = 1.0
-    # c1 = 3/40 = 0.075
-    # c2 = 17/4480 ~ 0.0037946
-    # c3 ~ 1.618e-4
-    # c4 ~ 6.24e-6
-    # c5 ~ 2.25e-7
     if np.any(is_small):
         zs = z[is_small]
 
-        # Horner's method for Ratio / (sqrt(2)/3)
-        # Using computed coefficients for z (not -z, coefficients include signs appropriately)
-        # The series was derived for Ratio(z).
+        # RATIO SERIES
+        # Ratio(z) = sqrt(2)/3 * (1 + 3/40 z + 17/4480 z^2 + ...)
         # Coefficients: [1.0, 0.075, 0.00379464, 1.6183e-4, 6.2409e-6, 2.2477e-7]
+        val_r = 2.24778741e-07
+        val_r = val_r * zs + 6.24091078e-06
+        val_r = val_r * zs + 1.61830357e-04
+        val_r = val_r * zs + 3.79464286e-03
+        val_r = val_r * zs + 7.50000000e-02
+        val_r = val_r * zs + 1.0
 
-        val = 2.24778741e-07
-        val = val * zs + 6.24091078e-06
-        val = val * zs + 1.61830357e-04
-        val = val * zs + 3.79464286e-03
-        val = val * zs + 7.50000000e-02
-        val = val * zs + 1.0
+        ratio[is_small] = (SQRT2 * INV_3) * val_r
 
-        ratio[is_small] = (SQRT2 * INV_3) * val
+        # TERM SERIES
+        # Term = -SQRT2 * cos(sqrt(z)/2)
+        # Using Taylor series for cos/cosh, same formula for pos/neg z.
+        # cos(x) = 1 - x^2/2 + x^4/24 - x^6/720 + x^8/40320
+        # x^2 = z/4
+        # Term / (-SQRT2) = 1 - z/8 + z^2/384 - z^3/46080 + z^4/10321920
+        # Coefficients for Term / (-SQRT2):
+        # c0 = 1.0
+        # c1 = -1/8 = -0.125
+        # c2 = 1/384 = 0.0026041666666666665
+        # c3 = -1/46080 = -2.170138888888889e-05
+        # c4 = 1/10321920 = 9.68817756e-08
+
+        val_t = 9.68817756e-08
+        val_t = val_t * zs - 2.17013889e-05
+        val_t = val_t * zs + 0.00260416667
+        val_t = val_t * zs - 0.125
+        val_t = val_t * zs + 1.0
+
+        term[is_small] = -SQRT2 * val_t
 
     return term, ratio
 
