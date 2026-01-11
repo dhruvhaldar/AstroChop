@@ -218,8 +218,25 @@ def plot_porkchop(launch_dates, arrival_dates, C3, TOF, filename='astrochop.png'
             arrival_str = opt_arrival.strftime('%Y-%m-%d')
             label_text = f"Launch: {launch_str}\nArrival: {arrival_str}\n" + label_text
 
+            # Smart Label Placement: Avoid cutting off text at edges by pointing towards center
+            # Calculate relative position in the plot window (0.0 to 1.0)
+            x_min, x_max = mdates.date2num(min(launch_dates)), mdates.date2num(max(launch_dates))
+            y_min, y_max = mdates.date2num(min(arrival_dates)), mdates.date2num(max(arrival_dates))
+
+            x_rel = (opt_launch_num - x_min) / (x_max - x_min)
+            y_rel = (opt_arrival_num - y_min) / (y_max - y_min)
+
+            # Point towards center: if > 0.6 (right/top), text goes left/down
+            x_off = -30 if x_rel > 0.6 else 30
+            y_off = -30 if y_rel > 0.6 else 30
+
+            # Align text away from the point
+            ha = 'right' if x_off < 0 else 'left'
+            va = 'top' if y_off < 0 else 'bottom'
+
             ax.annotate(label_text, (opt_launch_num, opt_arrival_num),
-                        xytext=(20, 20), textcoords='offset points',
+                        xytext=(x_off, y_off), textcoords='offset points',
+                        ha=ha, va=va,
                         bbox=dict(boxstyle="round,pad=0.5", fc="#FFFFE0", ec="#FFD700", alpha=0.95), # Light yellow bg, Gold edge
                         arrowprops=dict(arrowstyle="->", connectionstyle="arc3,rad=0.2", color="#444444"),
                         fontsize=9, zorder=11)

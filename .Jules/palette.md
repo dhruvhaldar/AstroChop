@@ -23,3 +23,7 @@
 ## 2024-12-14 - [Cognitive Load]
 **Learning:** Users often perform mental math to convert between related metrics (e.g., Energy vs. Delta-V).
 **Action:** Explicitly display derived metrics (like Dep $V_\infty$ alongside $C_3$) in summary views to reduce cognitive load and bridge different mental models.
+
+## 2025-05-19 - [Data Visualization]
+**Learning:** Static annotations near plot edges often get clipped, destroying the information.
+**Action:** Implement dynamic label positioning based on data coordinates (e.g., if point is in top-right quadrant, anchor label to bottom-left) to ensure text remains visible.
