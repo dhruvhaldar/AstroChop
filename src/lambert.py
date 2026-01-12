@@ -110,14 +110,30 @@ def _compute_term_ratio(z):
         # RATIO SERIES
         # Ratio(z) = sqrt(2)/3 * (1 + 3/40 z + 17/4480 z^2 + ...)
         # Coefficients: [1.0, 0.075, 0.00379464, 1.6183e-4, 6.2409e-6, 2.2477e-7]
-        val_r = 2.24778741e-07
-        val_r = val_r * zs + 6.24091078e-06
-        val_r = val_r * zs + 1.61830357e-04
-        val_r = val_r * zs + 3.79464286e-03
-        val_r = val_r * zs + 7.50000000e-02
-        val_r = val_r * zs + 1.0
+        # Optimization: Use in-place operations to minimize temporary allocations
 
-        ratio[is_small] = (SQRT2 * INV_3) * val_r
+        # val_r = 2.24778741e-07 * zs + 6.24091078e-06
+        val_r = zs * 2.24778741e-07
+        val_r += 6.24091078e-06
+
+        # val_r = val_r * zs + 1.61830357e-04
+        val_r *= zs
+        val_r += 1.61830357e-04
+
+        # val_r = val_r * zs + 3.79464286e-03
+        val_r *= zs
+        val_r += 3.79464286e-03
+
+        # val_r = val_r * zs + 7.50000000e-02
+        val_r *= zs
+        val_r += 7.50000000e-02
+
+        # val_r = val_r * zs + 1.0
+        val_r *= zs
+        val_r += 1.0
+
+        val_r *= (SQRT2 * INV_3) # In-place scaling
+        ratio[is_small] = val_r
 
         # TERM SERIES
         # Term = -SQRT2 * cos(sqrt(z)/2)
@@ -125,20 +141,26 @@ def _compute_term_ratio(z):
         # cos(x) = 1 - x^2/2 + x^4/24 - x^6/720 + x^8/40320
         # x^2 = z/4
         # Term / (-SQRT2) = 1 - z/8 + z^2/384 - z^3/46080 + z^4/10321920
-        # Coefficients for Term / (-SQRT2):
-        # c0 = 1.0
-        # c1 = -1/8 = -0.125
-        # c2 = 1/384 = 0.0026041666666666665
-        # c3 = -1/46080 = -2.170138888888889e-05
-        # c4 = 1/10321920 = 9.68817756e-08
+        # Coefficients: c0=1, c1=-0.125, c2=0.00260416667, c3=-2.17013889e-05, c4=9.68817756e-08
 
-        val_t = 9.68817756e-08
-        val_t = val_t * zs - 2.17013889e-05
-        val_t = val_t * zs + 0.00260416667
-        val_t = val_t * zs - 0.125
-        val_t = val_t * zs + 1.0
+        # val_t = 9.68817756e-08 * zs - 2.17013889e-05
+        val_t = zs * 9.68817756e-08
+        val_t -= 2.17013889e-05
 
-        term[is_small] = -SQRT2 * val_t
+        # val_t = val_t * zs + 0.00260416667
+        val_t *= zs
+        val_t += 0.00260416667
+
+        # val_t = val_t * zs - 0.125
+        val_t *= zs
+        val_t -= 0.125
+
+        # val_t = val_t * zs + 1.0
+        val_t *= zs
+        val_t += 1.0
+
+        val_t *= -SQRT2
+        term[is_small] = val_t
 
     return term, ratio
 
@@ -150,7 +172,10 @@ def _compute_t_internal(z_vals, r_sum, A, inv_sqrt_mu):
     # Optimization: Use half-angle formulas to avoid stumpff_c_s and explicit sqrt(C)
     term, ratio = _compute_term_ratio(z_vals)
 
-    y_val = r_sum + A * term
+    # Optimization: Use in-place operations to avoid extra allocations
+    # y_val = r_sum + A * term
+    y_val = A * term  # Create new array
+    y_val += r_sum    # In-place add
 
     # Valid check
     valid = y_val > 0
@@ -173,8 +198,21 @@ def _compute_t_internal(z_vals, r_sum, A, inv_sqrt_mu):
             A_v = A
 
         # t = sqrt(y) * (y * ratio + A) / sqrt(mu)
+        # Optimized with in-place ops:
+        # temp = y * ratio + A
+        # temp *= sqrt(y)
+        # temp *= inv_sqrt_mu
+
         sqrt_y = np.sqrt(y_v)
-        t_val[valid] = sqrt_y * (y_v * rat_v + A_v) * inv_sqrt_mu
+
+        # t_temp = y_v * rat_v + A_v
+        t_temp = y_v * rat_v
+        t_temp += A_v
+
+        t_temp *= sqrt_y
+        t_temp *= inv_sqrt_mu
+
+        t_val[valid] = t_temp
 
     return t_val
 
@@ -214,12 +252,17 @@ def lambert(r1_vec, r2_vec, dt, mu, tm=1, tol=1e-5, max_iter=50):
     
     dot_prod = np.sum(r1_vec * r2_vec, axis=-1)
     
+    # Optimization: reuse r1*r2 product
+    r1r2 = r1 * r2
+
     # Cos dnu
-    cos_dnu = dot_prod / (r1 * r2)
+    cos_dnu = dot_prod / r1r2
     cos_dnu = np.clip(cos_dnu, -1.0, 1.0)
     
     # Calculate A
-    A = tm * np.sqrt(r1 * r2 * (1 + cos_dnu))
+    # A = tm * np.sqrt(r1 * r2 * (1 + cos_dnu))
+    # Reuse r1r2
+    A = tm * np.sqrt(r1r2 * (1 + cos_dnu))
     
     # Precompute r_sum as it is constant in the loop
     r_sum = r1 + r2
@@ -321,7 +364,11 @@ def lambert(r1_vec, r2_vec, dt, mu, tm=1, tol=1e-5, max_iter=50):
 
     # Compute v vectors
     term, _ = _compute_term_ratio(z)
-    y = r1 + r2 + A * term
+
+    # y = r1 + r2 + A * term
+    # Optimization: reuse r_sum
+    y = A * term
+    y += r_sum
     
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
