@@ -84,7 +84,7 @@ def generate_porkchop(launch_dates, arrival_dates, body1='earth', body2='mars', 
     
     # Security Check: Prevent Memory Exhaustion / DoS
     if n_launch * n_arrival > MAX_GRID_SIZE:
-        raise ValueError(f"Grid size {n_launch}x{n_arrival} ({n_launch*n_arrival}) exceeds maximum limit of {MAX_GRID_SIZE}.")
+        raise ValueError(f"Grid size {n_launch}x{n_arrival} ({n_launch*n_arrival:,}) exceeds maximum limit of {MAX_GRID_SIZE:,}. Try increasing the step size (dt) to reduce the grid resolution.")
 
     C3 = np.zeros((n_arrival, n_launch))
     Vinf_arr = np.zeros((n_arrival, n_launch))

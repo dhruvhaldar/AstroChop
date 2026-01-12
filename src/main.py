@@ -16,15 +16,23 @@ def main():
     start_arrival = datetime(2005, 11, 1)
     end_arrival = datetime(2006, 10, 1)
 
-    print(f"📅 Launch Window:  {start_launch.strftime('%Y-%m-%d')} to {end_launch.strftime('%Y-%m-%d')}")
-    print(f"📅 Arrival Window: {start_arrival.strftime('%Y-%m-%d')} to {end_arrival.strftime('%Y-%m-%d')}")
+    launch_days = (end_launch - start_launch).days
+    arrival_days = (end_arrival - start_arrival).days
     
+    print(f"📅 Launch Window:  {start_launch.strftime('%Y-%m-%d')} to {end_launch.strftime('%Y-%m-%d')} ({launch_days} days)")
+    print(f"📅 Arrival Window: {start_arrival.strftime('%Y-%m-%d')} to {end_arrival.strftime('%Y-%m-%d')} ({arrival_days} days)")
+
+    # Estimate Flight Time Range
+    min_tof = (start_arrival - end_launch).days
+    max_tof = (end_arrival - start_launch).days
+    print(f"⏳ Flight Time:    ~{min_tof} to ~{max_tof} days")
+
     # Generate dates
     launch_dates = [start_launch + timedelta(days=i) for i in range(0, (end_launch - start_launch).days, 5)]
     arrival_dates = [start_arrival + timedelta(days=i) for i in range(0, (end_arrival - start_arrival).days, 5)]
     
     total_traj = len(launch_dates) * len(arrival_dates)
-    print(f"🚀 Computing {total_traj} trajectories...")
+    print(f"🚀 Computing {total_traj:,} trajectories...")
     
     ld, ad, C3, Vinf, TOF = generate_porkchop(launch_dates, arrival_dates, 'earth', 'mars', verbose=False)
     print("✨ Solution calculated.")
