@@ -183,12 +183,32 @@ def plot_porkchop(launch_dates, arrival_dates, C3, TOF, filename='astrochop.png'
     ax.clabel(CS, inline=1, fontsize=10, fmt='%1.1f')
 
     # Plot TOF (keep dashed red, maybe thicker or different color if needed)
-    levels_tof = range(100, 1000, 50)
+    # Dynamic levels for TOF to support both fast (Mercury) and slow (Jupiter) missions
+    # We use roughly 15-20 contour lines based on the data range
+    valid_tof = TOF[~np.isnan(TOF)]
+    if len(valid_tof) > 0:
+        tof_min, tof_max = valid_tof.min(), valid_tof.max()
+        # Ensure we have a valid range
+        if tof_max - tof_min < 1:
+             levels_tof = [tof_min]
+        else:
+             # Use MaxNLocator-like logic: ~15 levels
+             levels_tof = np.linspace(tof_min, tof_max, 15).astype(int)
+             # Unique and sorted to prevent warnings
+             levels_tof = np.unique(levels_tof)
+    else:
+        levels_tof = range(100, 1000, 50) # Fallback
+
     CS2 = ax.contour(X_dates, Y_dates, TOF, levels=levels_tof, colors='red', linestyles='dashed', linewidths=1.0)
     ax.clabel(CS2, inline=1, fontsize=10, fmt='%d d')
 
     # Grid
     ax.grid(True, linestyle=':', alpha=0.6)
+
+    # Add generated timestamp (Palette UX)
+    # Placing it bottom-right, outside axes to avoid clutter but ensure traceability
+    plt.figtext(0.99, 0.01, f"Generated: {datetime.now().strftime('%Y-%m-%d')}",
+                horizontalalignment='right', fontsize=8, color='#555555')
 
     # Plot optimal transfer marker if provided
     if optimal_transfer:
