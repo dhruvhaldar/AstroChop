@@ -47,5 +47,29 @@ class TestUXPlotter(unittest.TestCase):
         )
         self.assertTrue(os.path.exists(self.filename))
 
+    def test_legend_elements(self):
+        """Test that the legend contains the expected custom elements."""
+        plot_porkchop(
+            self.launch_dates,
+            self.arrival_dates,
+            self.C3,
+            self.TOF,
+            filename=self.filename
+        )
+
+        # Get the current figure and axes
+        fig = plt.gcf()
+        ax = plt.gca()
+        legend = ax.get_legend()
+
+        self.assertIsNotNone(legend, "Legend should exist")
+        texts = [t.get_text() for t in legend.get_texts()]
+
+        # Check for our new legend entries
+        self.assertIn('$C_3$ Energy (White Contours)', texts)
+        self.assertIn('Time of Flight', texts)
+        # Optimal transfer is not in this plot call, so check it's NOT there
+        self.assertNotIn('Optimal Transfer', texts)
+
 if __name__ == '__main__':
     unittest.main()
