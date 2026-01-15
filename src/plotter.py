@@ -200,7 +200,7 @@ def plot_porkchop(launch_dates, arrival_dates, C3, TOF, filename='astrochop.png'
     else:
         levels_tof = range(100, 1000, 50) # Fallback
 
-    CS2 = ax.contour(X_dates, Y_dates, TOF, levels=levels_tof, colors='red', linestyles='dashed', linewidths=1.0)
+    CS2 = ax.contour(X_dates, Y_dates, TOF, levels=levels_tof, colors='magenta', linestyles='dashed', linewidths=1.0)
     ax.clabel(CS2, inline=1, fontsize=10, fmt='%d d')
 
     # Grid
@@ -241,8 +241,8 @@ def plot_porkchop(launch_dates, arrival_dates, C3, TOF, filename='astrochop.png'
 
         if label_text:
             # Enhance UX: Add Launch/Arrival dates to annotation and use nicer colors
-            launch_str = opt_launch.strftime('%Y-%m-%d')
-            arrival_str = opt_arrival.strftime('%Y-%m-%d')
+            launch_str = opt_launch.strftime('%Y-%m-%d (%a)')
+            arrival_str = opt_arrival.strftime('%Y-%m-%d (%a)')
             label_text = f"Launch: {launch_str}\nArrival: {arrival_str}\n" + label_text
 
             # Smart Label Placement: Avoid cutting off text at edges by pointing towards center
@@ -271,7 +271,7 @@ def plot_porkchop(launch_dates, arrival_dates, C3, TOF, filename='astrochop.png'
     # Add contour explanations to legend
     # Note: C3 contours are white on the plot, but we use gray in the legend for visibility on the white background
     legend_elements.append(Line2D([0], [0], color='gray', lw=1, label='$C_3$ Energy (White Contours)'))
-    legend_elements.append(Line2D([0], [0], color='red', linestyle='dashed', lw=1, label='Time of Flight'))
+    legend_elements.append(Line2D([0], [0], color='magenta', linestyle='dashed', lw=1, label='Time of Flight'))
 
     ax.legend(handles=legend_elements, loc='upper right', framealpha=0.9)
 

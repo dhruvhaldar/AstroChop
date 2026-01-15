@@ -27,3 +27,7 @@
 ## 2025-05-19 - [Data Visualization]
 **Learning:** Static annotations near plot edges often get clipped, destroying the information.
 **Action:** Implement dynamic label positioning based on data coordinates (e.g., if point is in top-right quadrant, anchor label to bottom-left) to ensure text remains visible.
+
+## 2026-01-15 - [Human Context & Accessibility]
+**Learning:** Red overlaid on Green (Viridis middle range) causes visibility issues for colorblind users (Deuteranopia). Also, raw dates lack human context (e.g., "is that a weekend?").
+**Action:** Use Magenta/Pink for overlays on Viridis heatmaps for better contrast. Add day-of-week context (e.g., "Tue") to dates in summaries and annotations.
