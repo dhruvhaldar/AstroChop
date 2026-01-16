@@ -273,7 +273,7 @@ def plot_porkchop(launch_dates, arrival_dates, C3, TOF, filename='astrochop.png'
     legend_elements.append(Line2D([0], [0], color='gray', lw=1, label='$C_3$ Energy (White Contours)'))
     legend_elements.append(Line2D([0], [0], color='magenta', linestyle='dashed', lw=1, label='Time of Flight'))
 
-    ax.legend(handles=legend_elements, loc='upper right', framealpha=0.9)
+    ax.legend(handles=legend_elements, loc='best', framealpha=0.95, shadow=True, fancybox=True)
 
     ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
     ax.yaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
