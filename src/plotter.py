@@ -6,6 +6,7 @@ from matplotlib.lines import Line2D
 from datetime import datetime, timedelta
 from lambert import lambert
 from ephemeris import get_ephemeris, MU_SUN
+from concurrent.futures import ThreadPoolExecutor
 
 MAX_GRID_SIZE = 4_000_000  # Protection against Memory Exhaustion (DoS) - Reduced to ~600MB peak usage
 
@@ -63,9 +64,33 @@ def date_from_jd(jd):
     
     return datetime(year, month, int(day), h, m, int(s))
 
+def _porkchop_worker(r1_grid, r2_chunk, v1_grid, v2_chunk, dt_chunk):
+    """
+    Worker function for threaded porkchop generation.
+    Computes Lambert solution and immediately calculates C3, Vinf for the chunk
+    to save memory (avoiding storing full velocity grids).
+    """
+    # Solve Lambert for this chunk
+    # r1_grid (1, N, 3) broadcasts with r2_chunk (Chunk, 1, 3) -> (Chunk, N, 3)
+    # dt_chunk (Chunk, N)
+    v1_trans, v2_trans = lambert(r1_grid, r2_chunk, dt_chunk, MU_SUN)
+
+    # Calculate C3 and Vinf immediately
+    # v1_trans (Chunk, N, 3) - v1_grid (1, N, 3) -> (Chunk, N, 3)
+    dv1 = v1_trans - v1_grid
+    v_inf_dep = np.linalg.norm(dv1, axis=-1)
+    C3_chunk = v_inf_dep**2
+
+    # v2_trans (Chunk, N, 3) - v2_chunk (Chunk, 1, 3) -> (Chunk, N, 3)
+    dv2 = v2_trans - v2_chunk
+    Vinf_chunk = np.linalg.norm(dv2, axis=-1)
+
+    return C3_chunk, Vinf_chunk
+
 def generate_porkchop(launch_dates, arrival_dates, body1='earth', body2='mars', verbose=False):
     """
     Generates data for porkchop plot.
+    Uses multithreading for large grids to improve performance.
     
     Args:
         launch_dates (list of datetime): Possible launch dates.
@@ -91,12 +116,8 @@ def generate_porkchop(launch_dates, arrival_dates, body1='earth', body2='mars', 
     Vinf_arr = np.zeros((n_arrival, n_launch))
     TOF = np.zeros((n_arrival, n_launch))
     
-    # Pre-calculate positions to save time?
-    # Or just loop. Loop is easier to write.
-    
-    # Vectorized implementation
     if verbose:
-        print("Calculating vectorized solution...")
+        print("Calculating solution...")
 
     # Vectorized ephemeris retrieval
     jd1_arr = np.array([jd_from_date(ld) for ld in launch_dates])
@@ -130,23 +151,57 @@ def generate_porkchop(launch_dates, arrival_dates, body1='earth', body2='mars', 
     dt_sec = dt_days * 86400.0
     dt_sec_safe = np.where(valid_mask, dt_sec, 1.0)
 
-    # Solve Lambert (vectorized)
-    # r1_grid (1, N, 3) broadcasts with r2_grid (M, 1, 3) -> (M, N, 3)
-    # dt_sec_safe (M, N)
-    # Note: lambert() handles broadcasting automatically
-    v1_trans, v2_trans = lambert(r1_grid, r2_grid, dt_sec_safe, MU_SUN)
-
-    # Calculate C3 and Vinf
-    # v1_trans (M, N, 3) - v1_grid (1, N, 3) -> (M, N, 3)
-    dv1 = v1_trans - v1_grid
-    v_inf_dep = np.linalg.norm(dv1, axis=-1)
-    C3 = v_inf_dep**2
-
-    # v2_trans (M, N, 3) - v2_grid (M, 1, 3) -> (M, N, 3)
-    dv2 = v2_trans - v2_grid
-    Vinf_arr = np.linalg.norm(dv2, axis=-1)
-
     TOF = dt_days
+
+    # Threading Threshold: Only use threading for reasonably sized grids
+    # Lambert releases GIL, so threads are effective.
+    # Overhead of thread pool is small but non-zero.
+    total_points = n_launch * n_arrival
+    use_threading = total_points > 10000
+
+    if use_threading:
+        # Determine number of threads
+        # Cap at 8 or CPU count to avoid context switching overhead
+        max_threads = min(os.cpu_count() or 4, 8)
+
+        # Split along axis 0 (arrival dates, rows)
+        chunk_size = (n_arrival + max_threads - 1) // max_threads
+
+        futures = []
+        with ThreadPoolExecutor(max_workers=max_threads) as executor:
+            for i in range(0, n_arrival, chunk_size):
+                end_i = min(i + chunk_size, n_arrival)
+
+                # Slices
+                r2_chunk = r2_grid[i:end_i, :, :]
+                v2_chunk = v2_grid[i:end_i, :, :]
+                dt_chunk = dt_sec_safe[i:end_i, :]
+
+                futures.append(executor.submit(
+                    _porkchop_worker,
+                    r1_grid, r2_chunk, v1_grid, v2_chunk, dt_chunk
+                ))
+
+            # Collect results
+            start_row = 0
+            for future in futures:
+                c3_chunk, vinf_chunk = future.result()
+                rows = c3_chunk.shape[0]
+
+                C3[start_row:start_row+rows, :] = c3_chunk
+                Vinf_arr[start_row:start_row+rows, :] = vinf_chunk
+
+                start_row += rows
+    else:
+        # Single-threaded path for small grids
+        v1_trans, v2_trans = lambert(r1_grid, r2_grid, dt_sec_safe, MU_SUN)
+
+        dv1 = v1_trans - v1_grid
+        v_inf_dep = np.linalg.norm(dv1, axis=-1)
+        C3 = v_inf_dep**2
+
+        dv2 = v2_trans - v2_grid
+        Vinf_arr = np.linalg.norm(dv2, axis=-1)
 
     # Apply mask to invalidate cases where dt <= 0
     # Also mask any NaNs that might have come from Lambert (non-convergence)
