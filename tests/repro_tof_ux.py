@@ -49,7 +49,7 @@ class TestReproTOFUx(unittest.TestCase):
 
         for call in contour_calls:
             _, kwargs = call
-            if kwargs.get('colors') == 'red':
+            if kwargs.get('colors') == 'magenta':
                 found_tof = True
                 tof_levels = kwargs.get('levels')
                 break
