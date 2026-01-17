@@ -255,14 +255,13 @@ def lambert(r1_vec, r2_vec, dt, mu, tm=1, tol=1e-5, max_iter=50):
     # Optimization: reuse r1*r2 product
     r1r2 = r1 * r2
 
-    # Cos dnu
-    cos_dnu = dot_prod / r1r2
-    cos_dnu = np.clip(cos_dnu, -1.0, 1.0)
-    
     # Calculate A
-    # A = tm * np.sqrt(r1 * r2 * (1 + cos_dnu))
-    # Reuse r1r2
-    A = tm * np.sqrt(r1r2 * (1 + cos_dnu))
+    # A = tm * sqrt(r1*r2 * (1 + cos_dnu))
+    # Using identity: r1*r2 * (1 + dot/r1r2) = r1*r2 + dot
+    # This avoids division and clipping overhead
+    val = r1r2 + dot_prod
+    val = np.maximum(0.0, val) # Safeguard against numerical noise
+    A = tm * np.sqrt(val)
     
     # Precompute r_sum as it is constant in the loop
     r_sum = r1 + r2
