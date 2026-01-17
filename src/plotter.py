@@ -183,7 +183,7 @@ def plot_porkchop(launch_dates, arrival_dates, C3, TOF, filename='astrochop.png'
     CS = ax.contour(X_dates, Y_dates, C3, levels=levels, colors='white', linewidths=0.5, alpha=0.5)
     ax.clabel(CS, inline=1, fontsize=10, fmt='%1.1f')
 
-    # Plot TOF (keep dashed red, maybe thicker or different color if needed)
+    # Plot TOF (dashed magenta for better contrast on Viridis)
     # Dynamic levels for TOF to support both fast (Mercury) and slow (Jupiter) missions
     # We use roughly 15-20 contour lines based on the data range
     valid_tof = TOF[~np.isnan(TOF)]
