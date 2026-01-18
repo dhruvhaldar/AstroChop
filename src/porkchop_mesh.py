@@ -105,21 +105,43 @@ class PorkchopMesh:
         # v2 --- v3
         # Triangles: (v0, v2, v1) and (v1, v2, v3)
 
-        indices = []
-        for y in range(ny - 1):
-            for x in range(nx - 1):
-                # Vertex indices in the flattened array
-                v0 = y * nx + x
-                v1 = v0 + 1
-                v2 = (y + 1) * nx + x
-                v3 = v2 + 1
+        # Optimization: Vectorized Index Generation
+        # Replace nested loops (O(N*M)) with NumPy broadcasting (O(1))
 
-                # First triangle (Top-Left, Bottom-Left, Top-Right)
-                indices.append([v0, v2, v1])
-                # Second triangle (Top-Right, Bottom-Left, Bottom-Right)
-                indices.append([v1, v2, v3])
+        # Base indices for top-left corners (v0)
+        # Grid is (ny) rows by (nx) columns
+        x_idx = np.arange(nx - 1)
+        y_idx = np.arange(ny - 1)
+        X_idx, Y_idx = np.meshgrid(x_idx, y_idx)
 
-        self.indices = np.array(indices)
+        # Calculate v0 for each quad
+        v0 = Y_idx * nx + X_idx
+
+        # Calculate other vertices relative to v0
+        v1 = v0 + 1
+        v2 = v0 + nx
+        v3 = v2 + 1
+
+        # Flatten arrays to process as list of quads
+        v0 = v0.flatten()
+        v1 = v1.flatten()
+        v2 = v2.flatten()
+        v3 = v3.flatten()
+
+        # Create triangles
+        # T1: v0, v2, v1
+        t1 = np.stack((v0, v2, v1), axis=1)
+
+        # T2: v1, v2, v3
+        t2 = np.stack((v1, v2, v3), axis=1)
+
+        # Interleave triangles to preserve quad locality (T1_0, T2_0, T1_1, T2_1...)
+        n_quads = (nx - 1) * (ny - 1)
+        indices = np.empty((n_quads * 2, 3), dtype=np.int32)
+        indices[0::2] = t1
+        indices[1::2] = t2
+
+        self.indices = indices
 
     def intersect_ray(self, ray_origin, ray_dir):
         """
