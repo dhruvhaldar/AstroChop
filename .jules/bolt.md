@@ -13,3 +13,7 @@
 ## 2024-05-26 - Polynomial Series for Small Angles
 **Learning:** In the Lambert solver's `small z` regime, branching to handle positive/negative cases for `sqrt` and `trig` functions was a hidden cost. Replacing `cos(sqrt(z)/2)` and `cosh(sqrt(-z)/2)` with a single polynomial series (valid for all real `z`) eliminated both the expensive transcendental calls and the need for conditional masking in the hot path. This reduced `_compute_term_ratio` execution time by ~22%.
 **Action:** For small arguments, Taylor series are often faster than built-in transcendental functions and handle sign changes naturally (e.g., `cos(x)` vs `cosh(ix)`), allowing for branch-free vectorization.
+
+## 2025-02-23 - Vectorized Mesh Topology Generation
+**Learning:** Generating mesh indices with nested Python loops is inherently $O(N \times M)$ and becomes a significant bottleneck for large grids (e.g., >1M points). By replacing loops with `np.meshgrid` and `np.stack` to generate index patterns, we reduced mesh generation time by ~72% (from ~5.3s to ~1.46s for 1M points).
+**Action:** For structured grids, avoid iterating to build connectivity. Use `np.arange` and broadcasting to generate vertex indices and form topology arrays in a single pass.
