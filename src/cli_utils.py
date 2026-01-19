@@ -10,6 +10,73 @@ class Style:
     RED = '\033[91m'
     YELLOW = '\033[93m'
 
+def format_duration(days):
+    """
+    Formats a duration in days into a human-friendly string.
+
+    Examples:
+        25.0 -> "25.0 days"
+        45.0 -> "1 month, 15 days"
+        400.0 -> "1 year, 1 month"
+    """
+    if days < 30:
+        return f"{days:.1f} days"
+
+    # Approx constants
+    DAYS_PER_YEAR = 365.25
+    DAYS_PER_MONTH = 30.44
+
+    if days >= DAYS_PER_YEAR:
+        years = int(days // DAYS_PER_YEAR)
+        remaining_days = days % DAYS_PER_YEAR
+        months = int(round(remaining_days / DAYS_PER_MONTH))
+
+        # Handle case where rounding up months makes it 12
+        if months == 12:
+            years += 1
+            months = 0
+
+        y_str = "year" if years == 1 else "years"
+        m_str = "month" if months == 1 else "months"
+
+        if months == 0:
+            return f"{years} {y_str}"
+        return f"{years} {y_str}, {months} {m_str}"
+
+    else:
+        # Months and days
+        months = int(days // DAYS_PER_MONTH)
+        remaining_days = int(round(days % DAYS_PER_MONTH))
+
+        # Handle rollover
+        if remaining_days >= 30: # Rough check to roll over to next month
+             months += 1
+             remaining_days = 0
+
+        m_str = "month" if months == 1 else "months"
+        d_str = "day" if remaining_days == 1 else "days"
+
+        if remaining_days == 0:
+            return f"{months} {m_str}"
+        return f"{months} {m_str}, {remaining_days} {d_str}"
+
+def get_c3_color(value):
+    """
+    Returns the ANSI color code based on C3 energy value (km^2/s^2).
+
+    Context (Earth-Mars):
+        < 15: Excellent (Green)
+        15-20: Good (Green)
+        20-30: Acceptable (Yellow)
+        > 30: High Energy (Red)
+    """
+    if value <= 20:
+        return Style.GREEN
+    elif value <= 30:
+        return Style.YELLOW
+    else:
+        return Style.RED
+
 class Spinner:
     """
     A context manager that displays a spinning animation in the console

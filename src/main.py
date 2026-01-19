@@ -3,7 +3,7 @@ import numpy as np
 from plotter import generate_porkchop, plot_porkchop, jd_from_date
 from porkchop_mesh import DataGrid, PorkchopMesh
 from mesh_exporter import write_vtp
-from cli_utils import Style, Spinner
+from cli_utils import Style, Spinner, format_duration, get_c3_color
 
 def main():
     print("\n🎨 Earth-Mars Porkchop Plot Generator")
@@ -62,8 +62,11 @@ def main():
         print(f"\n🏆 {Style.BOLD}Optimal Transfer Found:{Style.ENDC}")
         print(f"   • Launch:  {Style.BOLD}{opt_launch_date.strftime('%Y-%m-%d (%A)')}{Style.ENDC} (DOY {doy_launch})")
         print(f"   • Arrival: {Style.BOLD}{opt_arrival_date.strftime('%Y-%m-%d (%A)')}{Style.ENDC} (DOY {doy_arrival})")
-        print(f"   • Duration: {Style.BOLD}{opt_tof:.1f} days{Style.ENDC} ({opt_tof/30.44:.1f} months)")
-        print(f"   • Energy:  {Style.BOLD}{opt_c3:.2f} km²/s²{Style.ENDC} (C3)")
+        print(f"   • Duration: {Style.BOLD}{format_duration(opt_tof)}{Style.ENDC} ({opt_tof:.1f} days)")
+
+        c3_color = get_c3_color(opt_c3)
+        print(f"   • Energy:  {c3_color}{Style.BOLD}{opt_c3:.2f} km²/s²{Style.ENDC} (C3)")
+
         print(f"   • Dep V_∞: {np.sqrt(opt_c3):.2f} km/s")
         print(f"   • Arr V_∞: {opt_vinf:.2f} km/s")
 
