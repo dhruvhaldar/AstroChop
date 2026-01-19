@@ -174,8 +174,15 @@ def _compute_t_internal(z_vals, r_sum, A, inv_sqrt_mu):
 
     # Optimization: Use in-place operations to avoid extra allocations
     # y_val = r_sum + A * term
-    y_val = A * term  # Create new array
-    y_val += r_sum    # In-place add
+    # Optimization: Reuse term buffer for y_val (as term is not used after this)
+    # term *= A (in-place)
+    # term += r_sum (in-place)
+    # y_val = term
+
+    # Note: A might be scalar or array. term is array.
+    term *= A
+    term += r_sum
+    y_val = term
 
     # Valid check
     valid = y_val > 0
@@ -206,13 +213,18 @@ def _compute_t_internal(z_vals, r_sum, A, inv_sqrt_mu):
         sqrt_y = np.sqrt(y_v)
 
         # t_temp = y_v * rat_v + A_v
-        t_temp = y_v * rat_v
-        t_temp += A_v
+        # Optimization: Reuse rat_v buffer for t_temp (rat_v is a copy due to slicing)
+        # rat_v *= y_v
+        # rat_v += A_v
+        # rat_v *= sqrt_y
+        # rat_v *= inv_sqrt_mu
 
-        t_temp *= sqrt_y
-        t_temp *= inv_sqrt_mu
+        rat_v *= y_v
+        rat_v += A_v
+        rat_v *= sqrt_y
+        rat_v *= inv_sqrt_mu
 
-        t_val[valid] = t_temp
+        t_val[valid] = rat_v
 
     return t_val
 
@@ -250,7 +262,9 @@ def lambert(r1_vec, r2_vec, dt, mu, tm=1, tol=1e-5, max_iter=50):
     r1 = np.linalg.norm(r1_vec, axis=-1)
     r2 = np.linalg.norm(r2_vec, axis=-1)
     
-    dot_prod = np.sum(r1_vec * r2_vec, axis=-1)
+    # Optimization: Use einsum to avoid allocating large intermediate array (M,N,3)
+    # Replaces: dot_prod = np.sum(r1_vec * r2_vec, axis=-1)
+    dot_prod = np.einsum('...k, ...k -> ...', r1_vec, r2_vec)
     
     # Optimization: reuse r1*r2 product
     r1r2 = r1 * r2
@@ -283,8 +297,12 @@ def lambert(r1_vec, r2_vec, dt, mu, tm=1, tol=1e-5, max_iter=50):
     # Convergence mask (initially all False)
     converged = np.zeros_like(dt, dtype=bool)
 
+    # Optimization: Preallocate diff buffer to avoid reallocation in loop
+    diff = np.empty_like(dt, dtype=float)
+
     for _ in range(max_iter):
-        diff = t1 - dt
+        # diff = t1 - dt
+        np.subtract(t1, dt, out=diff)
 
         # Check convergence
         # Optimization: removed redundant not_nan check.
