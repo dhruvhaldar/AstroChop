@@ -35,3 +35,7 @@
 ## 2026-01-21 - [CLI Responsiveness]
 **Learning:** Even "fast" vectorized calculations (0.1s - 1s) feel like hiccups in CLI flow without visual feedback, making the app feel sluggish.
 **Action:** Use a non-blocking spinner context manager for any operation >100ms to maintain a sense of "aliveness" and polish.
+
+## 2025-02-14 - Text Contrast on Colormaps
+**Learning:** White contour labels on `viridis` colormap become invisible in high-value (yellow) regions. Standard `clabel` doesn't provide contrast outlines by default.
+**Action:** Always apply `matplotlib.patheffects.withStroke` to contour labels overlaid on complex colormaps to ensure readability across the entire dynamic range.
