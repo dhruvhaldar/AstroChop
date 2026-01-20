@@ -185,7 +185,12 @@ def plot_porkchop(launch_dates, arrival_dates, C3, TOF, filename='astrochop.png'
 
     # Line contours for C3 (thin, white/dark for contrast)
     CS = ax.contour(X_dates, Y_dates, C3, levels=levels, colors='white', linewidths=0.5, alpha=0.5)
-    ax.clabel(CS, inline=1, fontsize=10, fmt='%1.1f')
+    clabels = ax.clabel(CS, inline=1, fontsize=10, fmt='%1.1f')
+
+    # Palette UX: Add black outline to C3 labels to ensure readability on high-energy (yellow) regions
+    import matplotlib.patheffects as pe
+    for txt in clabels:
+        txt.set_path_effects([pe.withStroke(linewidth=2, foreground='black')])
 
     # Plot TOF (dashed magenta for better contrast on Viridis)
     # Dynamic levels for TOF to support both fast (Mercury) and slow (Jupiter) missions
@@ -205,7 +210,11 @@ def plot_porkchop(launch_dates, arrival_dates, C3, TOF, filename='astrochop.png'
         levels_tof = range(100, 1000, 50) # Fallback
 
     CS2 = ax.contour(X_dates, Y_dates, TOF, levels=levels_tof, colors='magenta', linestyles='dashed', linewidths=1.0)
-    ax.clabel(CS2, inline=1, fontsize=10, fmt='%d d')
+    tof_labels = ax.clabel(CS2, inline=1, fontsize=10, fmt='%d d')
+
+    # Palette UX: Add white outline to TOF labels to ensure readability on dark (purple) regions
+    for txt in tof_labels:
+        txt.set_path_effects([pe.withStroke(linewidth=2, foreground='white')])
 
     # Grid
     ax.grid(True, linestyle=':', alpha=0.6)

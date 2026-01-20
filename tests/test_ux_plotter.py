@@ -71,5 +71,47 @@ class TestUXPlotter(unittest.TestCase):
         # Optimal transfer is not in this plot call, so check it's NOT there
         self.assertNotIn('Optimal Transfer', texts)
 
+    def test_contour_labels_path_effects(self):
+        """Test that contour labels have path effects applied for readability."""
+        plot_porkchop(
+            self.launch_dates,
+            self.arrival_dates,
+            self.C3,
+            self.TOF,
+            filename=self.filename
+        )
+
+        fig = plt.gcf()
+        ax = plt.gca()
+
+        # Check all text objects in the axes
+        # Note: clabel adds text objects to ax.texts
+        # We expect some labels because our data ranges are small but we force levels
+
+        # In the test setup, C3 ranges 10-13, TOF ranges 100-107.
+        # Levels are fixed in plotter.py:
+        # C3 levels: linspace(0, 50, 26) -> step 2.0 -> 0, 2, ..., 10, 12, ...
+        # TOF levels: dynamic, but likely includes values.
+
+        texts = ax.texts
+
+        # Depending on how many levels cross the data, we might or might not have labels.
+        # With C3=[10, 12], levels include 10, 12. So we should have contours and labels.
+
+        has_path_effects = False
+        import matplotlib.patheffects as pe
+
+        for t in texts:
+            effects = t.get_path_effects()
+            if effects:
+                has_path_effects = True
+                # Verify it is a stroke
+                self.assertIsInstance(effects[0], pe.withStroke)
+
+        # If no labels were generated, this test might be vacuously true/false.
+        # But given the levels, we expect labels.
+        if len(texts) > 0:
+            self.assertTrue(has_path_effects, "Contour labels should have path effects")
+
 if __name__ == '__main__':
     unittest.main()
