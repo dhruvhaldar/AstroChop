@@ -139,12 +139,16 @@ def generate_porkchop(launch_dates, arrival_dates, body1='earth', body2='mars', 
     # Calculate C3 and Vinf
     # v1_trans (M, N, 3) - v1_grid (1, N, 3) -> (M, N, 3)
     dv1 = v1_trans - v1_grid
-    v_inf_dep = np.linalg.norm(dv1, axis=-1)
-    C3 = v_inf_dep**2
+
+    # Optimization: Use einsum to compute squared norm directly, avoiding sqrt() and intermediate array
+    # C3 = |v_inf_dep|^2
+    C3 = np.einsum('...k,...k->...', dv1, dv1)
 
     # v2_trans (M, N, 3) - v2_grid (M, 1, 3) -> (M, N, 3)
     dv2 = v2_trans - v2_grid
-    Vinf_arr = np.linalg.norm(dv2, axis=-1)
+
+    # Optimization: Use einsum then sqrt, which is faster than linalg.norm
+    Vinf_arr = np.sqrt(np.einsum('...k,...k->...', dv2, dv2))
 
     TOF = dt_days
 
