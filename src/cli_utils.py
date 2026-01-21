@@ -77,6 +77,22 @@ def get_c3_color(value):
     else:
         return Style.RED
 
+def get_vinf_color(value):
+    """
+    Returns the ANSI color code based on V_infinity value (km/s).
+
+    Context (Earth-Mars):
+        < 4.5: Excellent (Green) - consistent with C3 < 20
+        4.5-6.0: Moderate (Yellow) - consistent with C3 ~ 20-36
+        > 6.0: High (Red)
+    """
+    if value <= 4.5:
+        return Style.GREEN
+    elif value <= 6.0:
+        return Style.YELLOW
+    else:
+        return Style.RED
+
 class Spinner:
     """
     A context manager that displays a spinning animation in the console

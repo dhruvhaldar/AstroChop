@@ -3,7 +3,7 @@ import numpy as np
 from plotter import generate_porkchop, plot_porkchop, jd_from_date
 from porkchop_mesh import DataGrid, PorkchopMesh
 from mesh_exporter import write_vtp
-from cli_utils import Style, Spinner, format_duration, get_c3_color
+from cli_utils import Style, Spinner, format_duration, get_c3_color, get_vinf_color
 
 def main():
     print("\n🎨 Earth-Mars Porkchop Plot Generator")
@@ -67,8 +67,12 @@ def main():
         c3_color = get_c3_color(opt_c3)
         print(f"   • Energy:  {c3_color}{Style.BOLD}{opt_c3:.2f} km²/s²{Style.ENDC} (C3)")
 
-        print(f"   • Dep V_∞: {np.sqrt(opt_c3):.2f} km/s")
-        print(f"   • Arr V_∞: {opt_vinf:.2f} km/s")
+        dep_vinf = np.sqrt(opt_c3)
+        dep_color = get_vinf_color(dep_vinf)
+        arr_color = get_vinf_color(opt_vinf)
+
+        print(f"   • Dep V_∞: {dep_color}{dep_vinf:.2f} km/s{Style.ENDC}")
+        print(f"   • Arr V_∞: {arr_color}{opt_vinf:.2f} km/s{Style.ENDC}")
 
     except ValueError:
         # np.nanargmin raises ValueError if all values are NaN

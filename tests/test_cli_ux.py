@@ -1,5 +1,5 @@
 import unittest
-from cli_utils import format_duration, get_c3_color, Style
+from cli_utils import format_duration, get_c3_color, get_vinf_color, Style
 
 class TestCliUx(unittest.TestCase):
     def test_format_duration_days_only(self):
@@ -30,3 +30,13 @@ class TestCliUx(unittest.TestCase):
         self.assertEqual(get_c3_color(25.0), Style.YELLOW)
         # High >= 30
         self.assertEqual(get_c3_color(35.0), Style.RED)
+
+    def test_get_vinf_color(self):
+        # Excellent < 4.5
+        self.assertEqual(get_vinf_color(3.5), Style.GREEN)
+        self.assertEqual(get_vinf_color(4.5), Style.GREEN)
+        # Moderate 4.5 - 6.0
+        self.assertEqual(get_vinf_color(5.0), Style.YELLOW)
+        self.assertEqual(get_vinf_color(6.0), Style.YELLOW)
+        # High > 6.0
+        self.assertEqual(get_vinf_color(6.5), Style.RED)
