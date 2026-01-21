@@ -64,8 +64,10 @@ def _compute_term_ratio(z):
         ratio: S(z) / C(z)^1.5
                Used to compute t.
     """
-    term = np.zeros_like(z, dtype=float)
-    ratio = np.zeros_like(z, dtype=float)
+    # Optimization: Use empty_like to avoid zero-initialization overhead
+    # We guarantee to write to all indices via the three regimes below.
+    term = np.empty_like(z, dtype=float)
+    ratio = np.empty_like(z, dtype=float)
 
     # 1. Large Positive Regime (z >= 0.1)
     large_pos = z >= 0.1

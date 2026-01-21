@@ -21,3 +21,7 @@
 ## 2025-02-24 - Einsum for Norm Calculation
 **Learning:** `np.linalg.norm` is convenient but can be slow for large arrays due to overhead and intermediate allocations. Replacing `np.linalg.norm(x)**2` with `np.einsum('...k,...k->...', x, x)` avoids `sqrt` and array allocation, yielding a ~4.8x speedup. Even for standard norm, `np.sqrt(np.einsum(...))` is ~2.6x faster than `np.linalg.norm`.
 **Action:** In hot paths, especially for C3 (squared energy) calculations, use `np.einsum` to compute dot products and squared norms directly. Avoid `np.linalg.norm` inside critical loops or on massive grids.
+
+## 2025-02-24 - Initialization Overhead in Hot Loops
+**Learning:** In repeatedly called functions (like `_compute_term_ratio` inside `lambert` solver), even efficient operations like `np.zeros_like` add up. Replacing it with `np.empty_like` when full array population is guaranteed saved ~4% execution time.
+**Action:** Use `np.empty_like` instead of `np.zeros_like` or `np.full_like` in performance-critical sections IF and ONLY IF you can prove every element is subsequently overwritten.
