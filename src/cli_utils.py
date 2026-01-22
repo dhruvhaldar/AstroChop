@@ -60,22 +60,27 @@ def format_duration(days):
             return f"{months} {m_str}"
         return f"{months} {m_str}, {remaining_days} {d_str}"
 
-def get_c3_color(value):
+def get_c3_rating(value):
     """
-    Returns the ANSI color code based on C3 energy value (km^2/s^2).
+    Returns the ANSI color code and a semantic description based on C3 energy value (km^2/s^2).
 
     Context (Earth-Mars):
         < 15: Excellent (Green)
         15-20: Good (Green)
         20-30: Acceptable (Yellow)
         > 30: High Energy (Red)
+
+    Returns:
+        tuple: (color_code, description)
     """
-    if value <= 20:
-        return Style.GREEN
+    if value < 15:
+        return Style.GREEN, "Excellent"
+    elif value <= 20:
+        return Style.GREEN, "Good"
     elif value <= 30:
-        return Style.YELLOW
+        return Style.YELLOW, "Acceptable"
     else:
-        return Style.RED
+        return Style.RED, "High Energy"
 
 class Spinner:
     """

@@ -39,3 +39,7 @@
 ## 2025-02-14 - Text Contrast on Colormaps
 **Learning:** White contour labels on `viridis` colormap become invisible in high-value (yellow) regions. Standard `clabel` doesn't provide contrast outlines by default.
 **Action:** Always apply `matplotlib.patheffects.withStroke` to contour labels overlaid on complex colormaps to ensure readability across the entire dynamic range.
+
+## 2025-02-18 - [Accessibility & Semantics]
+**Learning:** Color-coded metrics (Red/Green/Yellow) in CLI output are inaccessible to colorblind users if they rely solely on hue.
+**Action:** Always pair status colors with explicit semantic text labels (e.g., "Good", "High Energy") to ensure the judgment is communicated clearly to all users.
