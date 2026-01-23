@@ -212,9 +212,9 @@ def plot_porkchop(launch_dates, arrival_dates, C3, TOF, filename='astrochop.png'
     CS2 = ax.contour(X_dates, Y_dates, TOF, levels=levels_tof, colors='magenta', linestyles='dashed', linewidths=1.0)
     tof_labels = ax.clabel(CS2, inline=1, fontsize=10, fmt='%d d')
 
-    # Palette UX: Add white outline to TOF labels to ensure readability on dark (purple) regions
+    # Palette UX: Add black outline to TOF labels to ensure readability on high-energy (yellow) regions
     for txt in tof_labels:
-        txt.set_path_effects([pe.withStroke(linewidth=2, foreground='white')])
+        txt.set_path_effects([pe.withStroke(linewidth=2, foreground='black')])
 
     # Grid
     ax.grid(True, linestyle=':', alpha=0.6)
