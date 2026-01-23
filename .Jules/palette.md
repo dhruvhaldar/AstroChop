@@ -39,3 +39,7 @@
 ## 2025-02-14 - Text Contrast on Colormaps
 **Learning:** White contour labels on `viridis` colormap become invisible in high-value (yellow) regions. Standard `clabel` doesn't provide contrast outlines by default.
 **Action:** Always apply `matplotlib.patheffects.withStroke` to contour labels overlaid on complex colormaps to ensure readability across the entire dynamic range.
+
+## 2026-02-10 - [Visual Accessibility]
+**Learning:** Using a white outline (stroke) for text on a colormap works for dark regions but fails completely on bright regions (like 'viridis' yellow), rendering text invisible.
+**Action:** Default to a Black outline for text overlaid on variable-brightness heatmaps, as it provides consistent separation on both dark and light extremes.
