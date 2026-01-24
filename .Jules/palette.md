@@ -43,3 +43,7 @@
 ## 2026-02-10 - [Visual Accessibility]
 **Learning:** Using a white outline (stroke) for text on a colormap works for dark regions but fails completely on bright regions (like 'viridis' yellow), rendering text invisible.
 **Action:** Default to a Black outline for text overlaid on variable-brightness heatmaps, as it provides consistent separation on both dark and light extremes.
+
+## 2026-05-22 - [Semantic Data]
+**Learning:** Users struggle to interpret raw scientific values (e.g., Energy, Velocity) without domain expertise context.
+**Action:** Always provide qualitative ratings (e.g., "Excellent", "High") alongside raw numerical outputs to reduce cognitive load and improve accessibility.

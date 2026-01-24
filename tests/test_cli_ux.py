@@ -1,5 +1,5 @@
 import unittest
-from cli_utils import format_duration, get_c3_color, Style
+from cli_utils import format_duration, get_c3_rating, get_vinf_rating, Style
 
 class TestCliUx(unittest.TestCase):
     def test_format_duration_days_only(self):
@@ -21,12 +21,20 @@ class TestCliUx(unittest.TestCase):
         self.assertEqual(format_duration(400), "1 year, 1 month")
         self.assertEqual(format_duration(750), "2 years, 1 month")
 
-    def test_get_c3_color(self):
+    def test_get_c3_rating(self):
         # Excellent < 15
-        self.assertEqual(get_c3_color(10.0), Style.GREEN)
+        self.assertEqual(get_c3_rating(10.0), (Style.GREEN, "(Excellent)"))
         # Good < 20
-        self.assertEqual(get_c3_color(18.0), Style.GREEN)
+        self.assertEqual(get_c3_rating(18.0), (Style.GREEN, "(Good)"))
         # Acceptable < 30
-        self.assertEqual(get_c3_color(25.0), Style.YELLOW)
+        self.assertEqual(get_c3_rating(25.0), (Style.YELLOW, "(Acceptable)"))
         # High >= 30
-        self.assertEqual(get_c3_color(35.0), Style.RED)
+        self.assertEqual(get_c3_rating(35.0), (Style.RED, "(High Energy)"))
+
+    def test_get_vinf_rating(self):
+        # Excellent < 4.5
+        self.assertEqual(get_vinf_rating(3.0), (Style.GREEN, "(Excellent)"))
+        # Manageable <= 6.0
+        self.assertEqual(get_vinf_rating(5.5), (Style.YELLOW, "(Manageable)"))
+        # High > 6.0
+        self.assertEqual(get_vinf_rating(7.0), (Style.RED, "(High)"))

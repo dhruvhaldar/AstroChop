@@ -3,7 +3,7 @@ import numpy as np
 from plotter import generate_porkchop, plot_porkchop, jd_from_date
 from porkchop_mesh import DataGrid, PorkchopMesh
 from mesh_exporter import write_vtp
-from cli_utils import Style, Spinner, format_duration, get_c3_color
+from cli_utils import Style, Spinner, format_duration, get_c3_rating, get_vinf_rating
 
 def main():
     print("\n🎨 Earth-Mars Porkchop Plot Generator")
@@ -64,11 +64,13 @@ def main():
         print(f"   • Arrival: {Style.BOLD}{opt_arrival_date.strftime('%Y-%m-%d (%A)')}{Style.ENDC} (DOY {doy_arrival})")
         print(f"   • Duration: {Style.BOLD}{format_duration(opt_tof)}{Style.ENDC} ({opt_tof:.1f} days)")
 
-        c3_color = get_c3_color(opt_c3)
-        print(f"   • Energy:  {c3_color}{Style.BOLD}{opt_c3:.2f} km²/s²{Style.ENDC} (C3)")
+        c3_color, c3_desc = get_c3_rating(opt_c3)
+        print(f"   • Energy:  {c3_color}{Style.BOLD}{opt_c3:.2f} km²/s²{Style.ENDC} (C3) {c3_color}{c3_desc}{Style.ENDC}")
 
         print(f"   • Dep V_∞: {np.sqrt(opt_c3):.2f} km/s")
-        print(f"   • Arr V_∞: {opt_vinf:.2f} km/s")
+
+        vinf_color, vinf_desc = get_vinf_rating(opt_vinf)
+        print(f"   • Arr V_∞: {vinf_color}{Style.BOLD}{opt_vinf:.2f} km/s{Style.ENDC} {vinf_color}{vinf_desc}{Style.ENDC}")
 
     except ValueError:
         # np.nanargmin raises ValueError if all values are NaN

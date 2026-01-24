@@ -60,9 +60,9 @@ def format_duration(days):
             return f"{months} {m_str}"
         return f"{months} {m_str}, {remaining_days} {d_str}"
 
-def get_c3_color(value):
+def get_c3_rating(value):
     """
-    Returns the ANSI color code based on C3 energy value (km^2/s^2).
+    Returns (color, description) based on C3 energy value (km^2/s^2).
 
     Context (Earth-Mars):
         < 15: Excellent (Green)
@@ -70,12 +70,30 @@ def get_c3_color(value):
         20-30: Acceptable (Yellow)
         > 30: High Energy (Red)
     """
-    if value <= 20:
-        return Style.GREEN
+    if value < 15:
+        return Style.GREEN, "(Excellent)"
+    elif value <= 20:
+        return Style.GREEN, "(Good)"
     elif value <= 30:
-        return Style.YELLOW
+        return Style.YELLOW, "(Acceptable)"
     else:
-        return Style.RED
+        return Style.RED, "(High Energy)"
+
+def get_vinf_rating(value):
+    """
+    Returns (color, description) based on Arrival V_inf (km/s).
+
+    Context (Mars Entry):
+        < 4.5: Excellent (Green) - Direct entry feasible
+        4.5 - 6.0: Manageable (Yellow) - Tougher entry
+        > 6.0: High (Red) - Requires significant breaking
+    """
+    if value < 4.5:
+        return Style.GREEN, "(Excellent)"
+    elif value <= 6.0:
+        return Style.YELLOW, "(Manageable)"
+    else:
+        return Style.RED, "(High)"
 
 class Spinner:
     """
