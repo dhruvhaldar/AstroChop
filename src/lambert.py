@@ -189,7 +189,27 @@ def _compute_t_internal(z_vals, r_sum, A, inv_sqrt_mu):
     # Valid check
     valid = y_val > 0
 
-    t_val = np.full_like(z_vals, np.nan)
+    # Optimization: Fast path for common case (all valid)
+    # Avoids allocating t_val, slicing ratio, and extra copies
+    if np.all(valid):
+        # Reuse ratio buffer for t (ratio is not used after this)
+        # ratio *= y_val
+        # ratio += A
+        ratio *= y_val
+        ratio += A
+
+        # Optimization: Reuse y_val buffer for sqrt(y)
+        # y_val is 'term' from _compute_term_ratio, not needed anymore
+        np.sqrt(y_val, out=y_val)
+
+        ratio *= y_val
+        ratio *= inv_sqrt_mu
+
+        return ratio
+
+    # Slow path (some invalid)
+    t_val = np.empty_like(z_vals)
+    t_val[~valid] = np.nan
 
     if np.any(valid):
         y_v = y_val[valid]
@@ -207,20 +227,11 @@ def _compute_t_internal(z_vals, r_sum, A, inv_sqrt_mu):
             A_v = A
 
         # t = sqrt(y) * (y * ratio + A) / sqrt(mu)
-        # Optimized with in-place ops:
-        # temp = y * ratio + A
-        # temp *= sqrt(y)
-        # temp *= inv_sqrt_mu
 
         sqrt_y = np.sqrt(y_v)
 
         # t_temp = y_v * rat_v + A_v
         # Optimization: Reuse rat_v buffer for t_temp (rat_v is a copy due to slicing)
-        # rat_v *= y_v
-        # rat_v += A_v
-        # rat_v *= sqrt_y
-        # rat_v *= inv_sqrt_mu
-
         rat_v *= y_v
         rat_v += A_v
         rat_v *= sqrt_y
