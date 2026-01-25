@@ -1,5 +1,5 @@
 import unittest
-from cli_utils import format_duration, get_c3_color, Style
+from cli_utils import format_duration, get_c3_color, get_c3_rating, get_vinf_rating, Style
 
 class TestCliUx(unittest.TestCase):
     def test_format_duration_days_only(self):
@@ -10,9 +10,6 @@ class TestCliUx(unittest.TestCase):
     def test_format_duration_months(self):
         # Approx 30.44 days per month
         # 45 days -> ~1.5 months -> "1 month, 15 days"
-        # Let's see how we want to implement it.
-        # Maybe just "1.5 months (45 days)" is fine, but "1 month, 15 days" is friendlier.
-        # Let's stick to the plan: "1 month, 15 days"
         self.assertEqual(format_duration(45), "1 month, 15 days")
         self.assertEqual(format_duration(65), "2 months, 4 days")
 
@@ -30,3 +27,22 @@ class TestCliUx(unittest.TestCase):
         self.assertEqual(get_c3_color(25.0), Style.YELLOW)
         # High >= 30
         self.assertEqual(get_c3_color(35.0), Style.RED)
+
+    def test_get_c3_rating(self):
+        # < 15 Excellent
+        self.assertEqual(get_c3_rating(10.0), (Style.GREEN, "(Excellent)"))
+        # <= 20 Good
+        self.assertEqual(get_c3_rating(18.0), (Style.GREEN, "(Good)"))
+        # <= 30 Acceptable
+        self.assertEqual(get_c3_rating(25.0), (Style.YELLOW, "(Acceptable)"))
+        # > 30 High
+        self.assertEqual(get_c3_rating(35.0), (Style.RED, "(High Energy)"))
+
+    def test_get_vinf_rating(self):
+        # <= 4.5 Good
+        self.assertEqual(get_vinf_rating(3.0), (Style.GREEN, "(Good)"))
+        self.assertEqual(get_vinf_rating(4.5), (Style.GREEN, "(Good)"))
+        # <= 6.0 Acceptable
+        self.assertEqual(get_vinf_rating(5.5), (Style.YELLOW, "(Acceptable)"))
+        # > 6.0 High
+        self.assertEqual(get_vinf_rating(7.0), (Style.RED, "(High)"))
