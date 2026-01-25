@@ -43,3 +43,7 @@
 ## 2026-02-10 - [Visual Accessibility]
 **Learning:** Using a white outline (stroke) for text on a colormap works for dark regions but fails completely on bright regions (like 'viridis' yellow), rendering text invisible.
 **Action:** Default to a Black outline for text overlaid on variable-brightness heatmaps, as it provides consistent separation on both dark and light extremes.
+
+## 2025-05-21 - [Semantic Color Ratings]
+**Learning:** Relying solely on color (Green/Yellow/Red) to convey quality metrics (like C3 Energy) excludes colorblind users and forces others to memorize hidden thresholds.
+**Action:** Always pair color-coded metrics with explicit text labels (e.g., "(Excellent)", "(High)") to make the data self-interpreting and accessible.
