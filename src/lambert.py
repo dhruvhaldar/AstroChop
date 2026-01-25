@@ -189,6 +189,27 @@ def _compute_t_internal(z_vals, r_sum, A, inv_sqrt_mu):
     # Valid check
     valid = y_val > 0
 
+    # Optimization: Fast path for common case (all valid)
+    # Reusing the 'ratio' buffer avoids allocating 't_val' (large array) and reduces copying.
+    if valid.all():
+        # y_val is guaranteed positive, so we can use it directly
+        # ratio is available for in-place modification
+
+        # t = sqrt(y) * (y * ratio + A) / sqrt(mu)
+
+        sqrt_y = np.sqrt(y_val)
+
+        # ratio = y * ratio + A
+        ratio *= y_val
+        ratio += A
+
+        # ratio = ratio * sqrt(y) * inv_sqrt_mu
+        ratio *= sqrt_y
+        ratio *= inv_sqrt_mu
+
+        return ratio
+
+    # Slow path (mixed valid/invalid)
     t_val = np.full_like(z_vals, np.nan)
 
     if np.any(valid):
