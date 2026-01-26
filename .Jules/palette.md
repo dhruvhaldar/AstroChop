@@ -47,3 +47,7 @@
 ## 2025-05-21 - [Semantic Color Ratings]
 **Learning:** Relying solely on color (Green/Yellow/Red) to convey quality metrics (like C3 Energy) excludes colorblind users and forces others to memorize hidden thresholds.
 **Action:** Always pair color-coded metrics with explicit text labels (e.g., "(Excellent)", "(High)") to make the data self-interpreting and accessible.
+
+## 2026-02-15 - [Data Density]
+**Learning:** Standard rotated date labels (e.g., "YYYY-MM-DD") on axes create visual clutter and redundancy, forcing users to tilt their heads.
+**Action:** Use `matplotlib.dates.ConciseDateFormatter` to automatically strip redundant information (like Years) and align text horizontally, significantly improving the data-ink ratio.

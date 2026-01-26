@@ -288,10 +288,17 @@ def plot_porkchop(launch_dates, arrival_dates, C3, TOF, filename='astrochop.png'
 
     ax.legend(handles=legend_elements, loc='best', framealpha=0.95, shadow=True, fancybox=True)
 
-    ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
-    ax.yaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
-    
-    fig.autofmt_xdate()
+    # Palette UX: Use ConciseDateFormatter for cleaner, less cluttered axes
+    # This avoids slanted text and redundant year labels
+    locator_x = mdates.AutoDateLocator()
+    formatter_x = mdates.ConciseDateFormatter(locator_x)
+    ax.xaxis.set_major_locator(locator_x)
+    ax.xaxis.set_major_formatter(formatter_x)
+
+    locator_y = mdates.AutoDateLocator()
+    formatter_y = mdates.ConciseDateFormatter(locator_y)
+    ax.yaxis.set_major_locator(locator_y)
+    ax.yaxis.set_major_formatter(formatter_y)
     
     ax.set_title(title)
     ax.set_xlabel('Launch Date')
