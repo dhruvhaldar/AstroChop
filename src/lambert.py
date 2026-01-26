@@ -282,8 +282,9 @@ def lambert(r1_vec, r2_vec, dt, mu, tm=1, tol=1e-5, max_iter=50):
         was_scalar = True
     
     # Magnitudes
-    r1 = np.linalg.norm(r1_vec, axis=-1)
-    r2 = np.linalg.norm(r2_vec, axis=-1)
+    # Optimization: Use einsum for faster squared norm calc than linalg.norm
+    r1 = np.sqrt(np.einsum('...k, ...k -> ...', r1_vec, r1_vec))
+    r2 = np.sqrt(np.einsum('...k, ...k -> ...', r2_vec, r2_vec))
     
     # Optimization: Use einsum to avoid allocating large intermediate array (M,N,3)
     # Replaces: dot_prod = np.sum(r1_vec * r2_vec, axis=-1)
@@ -421,8 +422,24 @@ def lambert(r1_vec, r2_vec, dt, mu, tm=1, tol=1e-5, max_iter=50):
         f_exp = np.expand_dims(f, axis=-1)
         g_dot_exp = np.expand_dims(g_dot, axis=-1)
 
-        v1_vec = (r2_vec - f_exp * r1_vec) / g_exp
-        v2_vec = (g_dot_exp * r2_vec - r1_vec) / g_exp
+        # Optimization: Use in-place operations to minimize temporary allocations
+        # v1_vec = (r2_vec - f_exp * r1_vec) / g_exp
+
+        # v1_vec = r1_vec * f_exp
+        v1_vec = np.multiply(r1_vec, f_exp)
+        # v1_vec = r2_vec - v1_vec
+        np.subtract(r2_vec, v1_vec, out=v1_vec)
+        # v1_vec /= g_exp
+        np.divide(v1_vec, g_exp, out=v1_vec)
+
+        # v2_vec = (g_dot_exp * r2_vec - r1_vec) / g_exp
+
+        # v2_vec = r2_vec * g_dot_exp
+        v2_vec = np.multiply(r2_vec, g_dot_exp)
+        # v2_vec -= r1_vec
+        np.subtract(v2_vec, r1_vec, out=v2_vec)
+        # v2_vec /= g_exp
+        np.divide(v2_vec, g_exp, out=v2_vec)
     
     if was_scalar:
         return v1_vec[0], v2_vec[0]
