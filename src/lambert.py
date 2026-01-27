@@ -296,10 +296,15 @@ def lambert(r1_vec, r2_vec, dt, mu, tm=1, tol=1e-5, max_iter=50):
     # Calculate A
     # A = tm * sqrt(r1*r2 * (1 + cos_dnu))
     # Using identity: r1*r2 * (1 + dot/r1r2) = r1*r2 + dot
-    # This avoids division and clipping overhead
-    val = r1r2 + dot_prod
-    val = np.maximum(0.0, val) # Safeguard against numerical noise
-    A = tm * np.sqrt(val)
+    # Optimization: Reuse r1r2 buffer for A calculation to avoid allocations
+    np.add(r1r2, dot_prod, out=r1r2)
+    np.maximum(0.0, r1r2, out=r1r2) # Safeguard against numerical noise
+    np.sqrt(r1r2, out=r1r2)
+
+    if tm != 1:
+        r1r2 *= tm
+
+    A = r1r2
     
     # Precompute r_sum as it is constant in the loop
     r_sum = r1 + r2
@@ -407,15 +412,25 @@ def lambert(r1_vec, r2_vec, dt, mu, tm=1, tol=1e-5, max_iter=50):
     term, _ = _compute_term_ratio(z)
 
     # y = r1 + r2 + A * term
-    # Optimization: reuse r_sum
-    y = A * term
-    y += r_sum
+    # Optimization: Reuse term buffer for y (as term is not used after this)
+    term *= A
+    term += r_sum
+    y = term
     
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        f = 1 - y / r1
-        g = A * np.sqrt(y / mu)
-        g_dot = 1 - y / r2
+
+        # Optimization: Reduce allocations for f, g, g_dot
+        # g = A * sqrt(y) / sqrt(mu)
+        g = np.sqrt(y)
+        g *= inv_sqrt_mu
+        g *= A
+
+        # f = 1 - y / r1
+        f = 1.0 - y / r1
+
+        # g_dot = 1 - y / r2
+        g_dot = 1.0 - y / r2
 
         # Broadcasting g to (..., 1)
         g_exp = np.expand_dims(g, axis=-1)
