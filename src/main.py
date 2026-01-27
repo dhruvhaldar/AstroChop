@@ -67,7 +67,7 @@ def main():
         c3_color, c3_rating = get_c3_rating(opt_c3)
         print(f"   • Energy:  {c3_color}{Style.BOLD}{opt_c3:.2f} km²/s²{Style.ENDC} (C3) {c3_color}{c3_rating}{Style.ENDC}")
 
-        print(f"   • Dep V_∞: {np.sqrt(opt_c3):.2f} km/s")
+        print(f"   • Dep V_∞: {c3_color}{Style.BOLD}{np.sqrt(opt_c3):.2f} km/s{Style.ENDC} {c3_color}{c3_rating}{Style.ENDC}")
 
         vinf_color, vinf_rating = get_vinf_rating(opt_vinf)
         print(f"   • Arr V_∞: {vinf_color}{Style.BOLD}{opt_vinf:.2f} km/s{Style.ENDC} {vinf_color}{vinf_rating}{Style.ENDC}")
