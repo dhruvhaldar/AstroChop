@@ -48,7 +48,7 @@ def stumpff_c(z):
 def stumpff_s(z):
     return stumpff_c_s(z)[1]
 
-def _compute_term_ratio(z):
+def _compute_term_ratio(z, term_out=None, ratio_out=None):
     """
     Computes auxiliary variables for Lambert solver using half-angle formulas.
     This avoids expensive Stumpff function calls and intermediate square roots.
@@ -64,10 +64,16 @@ def _compute_term_ratio(z):
         ratio: S(z) / C(z)^1.5
                Used to compute t.
     """
-    # Optimization: Use empty_like to avoid zero-initialization overhead
-    # We guarantee to write to all indices via the three regimes below.
-    term = np.empty_like(z, dtype=float)
-    ratio = np.empty_like(z, dtype=float)
+    # Optimization: Use provided buffers to avoid allocation in hot loops
+    if term_out is None:
+        term = np.empty_like(z, dtype=float)
+    else:
+        term = term_out
+
+    if ratio_out is None:
+        ratio = np.empty_like(z, dtype=float)
+    else:
+        ratio = ratio_out
 
     # 1. Large Positive Regime (z >= 0.1)
     large_pos = z >= 0.1
@@ -166,13 +172,14 @@ def _compute_term_ratio(z):
 
     return term, ratio
 
-def _compute_t_internal(z_vals, r_sum, A, inv_sqrt_mu):
+def _compute_t_internal(z_vals, r_sum, A, inv_sqrt_mu, term_out=None, ratio_out=None):
     """
     Internal helper to compute Time of Flight from z.
     Separated to support calculating on active subsets.
     """
     # Optimization: Use half-angle formulas to avoid stumpff_c_s and explicit sqrt(C)
-    term, ratio = _compute_term_ratio(z_vals)
+    # Pass output buffers to avoid allocation
+    term, ratio = _compute_term_ratio(z_vals, term_out=term_out, ratio_out=ratio_out)
 
     # Optimization: Use in-place operations to avoid extra allocations
     # y_val = r_sum + A * term
@@ -210,11 +217,23 @@ def _compute_t_internal(z_vals, r_sum, A, inv_sqrt_mu):
         return ratio
 
     # Slow path (mixed valid/invalid)
-    t_val = np.full_like(z_vals, np.nan)
 
+    # Capture valid parts of ratio BEFORE potentially wiping buffer (if ratio_out is reused as t_val)
     if np.any(valid):
+        rat_v = ratio[valid] # Copy
         y_v = y_val[valid]
-        rat_v = ratio[valid]
+    else:
+        rat_v = None
+
+    # Reuse ratio_out buffer for t_val if possible, otherwise allocate
+    if ratio_out is not None:
+        t_val = ratio_out
+        t_val.fill(np.nan)
+    else:
+        t_val = np.full_like(z_vals, np.nan)
+
+    if rat_v is not None:
+        # rat_v and y_v captured above
 
         # For subset calculation, we need to slice A for valid entries too
         if A.shape != ():  # Check if A is an array
@@ -324,6 +343,12 @@ def lambert(r1_vec, r2_vec, dt, mu, tm=1, tol=1e-5, max_iter=50):
     # Optimization: Preallocate diff buffer to avoid reallocation in loop
     diff = np.empty_like(dt, dtype=float)
 
+    # Optimization: Preallocate buffers for term/ratio to avoid re-allocation in hot loop
+    # These are reused in _compute_t_internal
+    # Allocate flat arrays to support slicing for active sets (which are flat)
+    term_buffer = np.empty(dt.size, dtype=float)
+    ratio_buffer = np.empty(dt.size, dtype=float)
+
     for _ in range(max_iter):
         # diff = t1 - dt
         np.subtract(t1, dt, out=diff)
@@ -363,7 +388,14 @@ def lambert(r1_vec, r2_vec, dt, mu, tm=1, tol=1e-5, max_iter=50):
         r_sum_a = r_sum[active]
         A_a = A[active]
         
-        t_val_a = _compute_t_internal(z_new_a, r_sum_a, A_a, inv_sqrt_mu)
+        # Optimization: Use slices of preallocated buffers to avoid creating new arrays
+        # z_new_a size is equal to count of active
+        # We can just take the first n elements of the buffers
+        n_active = z_new_a.size
+        term_slice = term_buffer[:n_active]
+        ratio_slice = ratio_buffer[:n_active]
+
+        t_val_a = _compute_t_internal(z_new_a, r_sum_a, A_a, inv_sqrt_mu, term_out=term_slice, ratio_out=ratio_slice)
         t1[active] = t_val_a
         
         # Recovery for NaNs in active set
