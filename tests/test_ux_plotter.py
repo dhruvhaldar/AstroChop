@@ -113,5 +113,37 @@ class TestUXPlotter(unittest.TestCase):
         if len(texts) > 0:
             self.assertTrue(has_path_effects, "Contour labels should have path effects")
 
+    def test_semantic_annotation_content(self):
+        """Test that the optimal transfer annotation includes semantic quality ratings."""
+        # Setup: Excellent C3 (<15) and Good V_inf (<=4.5)
+        # C3 = 10.0 -> Excellent
+        # V_inf = 3.5 -> Good
+        opt_transfer_5 = (datetime(2025, 1, 1), datetime(2025, 6, 1), 10.0, 100, 3.5)
+
+        plot_porkchop(
+            self.launch_dates,
+            self.arrival_dates,
+            self.C3,
+            self.TOF,
+            filename=self.filename,
+            optimal_transfer=opt_transfer_5
+        )
+
+        ax = plt.gca()
+
+        # Find the annotation text
+        found_semantic_rating = False
+        import matplotlib.text
+
+        # Look through all texts (including annotations)
+        for child in ax.texts:
+            text = child.get_text()
+            # We expect the annotation to contain "(Excellent)" and "(Good)"
+            if "(Excellent)" in text and "(Good)" in text:
+                found_semantic_rating = True
+                break
+
+        self.assertTrue(found_semantic_rating, "Annotation should contain semantic ratings '(Excellent)' and '(Good)'")
+
 if __name__ == '__main__':
     unittest.main()
