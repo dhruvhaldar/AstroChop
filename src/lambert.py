@@ -75,7 +75,126 @@ def _compute_term_ratio(z, term_out=None, ratio_out=None):
     else:
         ratio = ratio_out
 
-    # 1. Large Positive Regime (z >= 0.1)
+    if z.size == 0:
+        return term, ratio
+
+    # Optimization: Check for pure regimes using min/max to avoid boolean array allocation.
+    # This is highly effective because z0=0 (All Small) and z1=1 (All Pos)
+    # are the initial guesses for 100% of calculations.
+    min_z = np.min(z)
+    max_z = np.max(z)
+
+    # 1. All Large Positive
+    if min_z >= 0.1:
+        # z is guaranteed positive
+        zp = z
+        sz = np.sqrt(zp)
+        sz_2 = sz * 0.5
+        sa = np.sin(sz_2)
+        ca = np.cos(sz_2)
+
+        # Term: -sqrt(2) * cos(sqrt(z)/2)
+        np.multiply(ca, -SQRT2, out=term)
+
+        # Ratio: (sz - 2*sa*ca) / (2*sqrt(2)*sa^3)
+        sa3 = sa * sa * sa
+
+        # Calculate numerator in ratio buffer to save memory
+        # num = sz - 2 * sa * ca
+        np.multiply(sa, ca, out=ratio)
+        np.multiply(ratio, -2.0, out=ratio)
+        np.add(ratio, sz, out=ratio)
+
+        # Calculate denominator
+        den = 2 * SQRT2 * sa3
+
+        # Final division
+        np.divide(ratio, den, out=ratio)
+
+        return term, ratio
+
+    # 2. All Large Negative
+    if max_z <= -0.1:
+        # z is guaranteed negative
+        zn = -z # Allocate temp array (unavoidable for sqrt(-z))
+        sz = np.sqrt(zn)
+        sz_2 = sz * 0.5
+        sa = np.sinh(sz_2)
+        ca = np.cosh(sz_2)
+
+        # Term: -sqrt(2) * cosh(sqrt(-z)/2)
+        np.multiply(ca, -SQRT2, out=term)
+
+        # Ratio: (2*sa*ca - sz) / (2*sqrt(2)*sa^3)
+        sa3 = sa * sa * sa
+
+        # Calculate numerator in ratio buffer
+        # num = 2 * sa * ca - sz
+        np.multiply(sa, ca, out=ratio)
+        np.multiply(ratio, 2.0, out=ratio)
+        np.subtract(ratio, sz, out=ratio)
+
+        # Calculate denominator
+        den = 2 * SQRT2 * sa3
+
+        # Final division
+        np.divide(ratio, den, out=ratio)
+
+        return term, ratio
+
+    # 3. All Small
+    if min_z > -0.1 and max_z < 0.1:
+        zs = z
+
+        # RATIO SERIES
+        # Optimization: Use ratio buffer for accumulation to save memory
+        # val_r = zs * 2.24778741e-07 + 6.24091078e-06
+        np.multiply(zs, 2.24778741e-07, out=ratio)
+        np.add(ratio, 6.24091078e-06, out=ratio)
+
+        # val_r = val_r * zs + 1.61830357e-04
+        np.multiply(ratio, zs, out=ratio)
+        np.add(ratio, 1.61830357e-04, out=ratio)
+
+        # val_r = val_r * zs + 3.79464286e-03
+        np.multiply(ratio, zs, out=ratio)
+        np.add(ratio, 3.79464286e-03, out=ratio)
+
+        # val_r = val_r * zs + 7.50000000e-02
+        np.multiply(ratio, zs, out=ratio)
+        np.add(ratio, 7.50000000e-02, out=ratio)
+
+        # val_r = val_r * zs + 1.0
+        np.multiply(ratio, zs, out=ratio)
+        np.add(ratio, 1.0, out=ratio)
+
+        # val_r *= (SQRT2 * INV_3)
+        np.multiply(ratio, (SQRT2 * INV_3), out=ratio)
+
+        # TERM SERIES
+        # Optimization: Use term buffer for accumulation
+        # val_t = zs * 9.68817756e-08 - 2.17013889e-05
+        np.multiply(zs, 9.68817756e-08, out=term)
+        np.subtract(term, 2.17013889e-05, out=term)
+
+        # val_t = val_t * zs + 0.00260416667
+        np.multiply(term, zs, out=term)
+        np.add(term, 0.00260416667, out=term)
+
+        # val_t = val_t * zs - 0.125
+        np.multiply(term, zs, out=term)
+        np.subtract(term, 0.125, out=term)
+
+        # val_t = val_t * zs + 1.0
+        np.multiply(term, zs, out=term)
+        np.add(term, 1.0, out=term)
+
+        # val_t *= -SQRT2
+        np.multiply(term, -SQRT2, out=term)
+
+        return term, ratio
+
+    # Mixed Regime (Original Masked Implementation)
     large_pos = z >= 0.1
     if np.any(large_pos):
         zp = z[large_pos]
@@ -91,7 +210,6 @@ def _compute_term_ratio(z, term_out=None, ratio_out=None):
         sa3 = sa * sa * sa
         ratio[large_pos] = (sz - 2 * sa * ca) / (2 * SQRT2 * sa3)
 
-    # 2. Large Negative Regime (z <= -0.1)
     large_neg = z <= -0.1
     if np.any(large_neg):
         zn = -z[large_neg]
@@ -108,8 +226,6 @@ def _compute_term_ratio(z, term_out=None, ratio_out=None):
         ratio[large_neg] = (2 * sa * ca - sz) / (2 * SQRT2 * sa3)
 
     # 3. Small Regime (|z| < 0.1)
-    # Use series for both Term and Ratio.
-    # This avoids sqrt, cos, cosh, and branching for small z.
     is_small = ~(large_pos | large_neg)
 
     if np.any(is_small):
