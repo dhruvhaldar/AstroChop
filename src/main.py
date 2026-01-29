@@ -3,7 +3,8 @@ import numpy as np
 from plotter import generate_porkchop, plot_porkchop, jd_from_date
 from porkchop_mesh import DataGrid, PorkchopMesh
 from mesh_exporter import write_vtp
-from cli_utils import Style, Spinner, format_duration, get_c3_rating, get_vinf_rating
+from pathlib import Path
+from cli_utils import Style, Spinner, format_duration, get_c3_rating, get_vinf_rating, make_hyperlink
 
 def main():
     print("\n🎨 Earth-Mars Porkchop Plot Generator")
@@ -109,8 +110,17 @@ def main():
             # Export
             write_vtp('earth_mars_porkchop.vtp', mesh)
 
-        print(f"   • Plot saved to: {Style.BOLD}astrochop.png{Style.ENDC}")
-        print(f"   • 3D Mesh saved to: {Style.BOLD}earth_mars_porkchop.vtp{Style.ENDC}")
+        # Generate clickable file links
+        plot_path = Path('astrochop.png').resolve()
+        plot_uri = plot_path.as_uri()
+        plot_link = make_hyperlink("astrochop.png", plot_uri)
+
+        mesh_path = Path('earth_mars_porkchop.vtp').resolve()
+        mesh_uri = mesh_path.as_uri()
+        mesh_link = make_hyperlink("earth_mars_porkchop.vtp", mesh_uri)
+
+        print(f"   • Plot saved to: {Style.BOLD}{plot_link}{Style.ENDC}")
+        print(f"   • 3D Mesh saved to: {Style.BOLD}{mesh_link}{Style.ENDC}")
         print(f"     (💡 Tip: Open this file with ParaView to explore the 3D energy landscape!)")
 
     except (ValueError, OSError) as e:
