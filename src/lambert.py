@@ -90,14 +90,19 @@ def _compute_term_ratio(z, term_out=None, ratio_out=None):
         zp = z
         sz = np.sqrt(zp)
         sz_2 = sz * 0.5
+
+        # Optimization: Reuse buffers to minimize allocations
+        # Need distinct buffers for sin and cos initially.
         sa = np.sin(sz_2)
-        ca = np.cos(sz_2)
+
+        # Reuse sz_2 for ca
+        np.cos(sz_2, out=sz_2)
+        ca = sz_2
 
         # Term: -sqrt(2) * cos(sqrt(z)/2)
         np.multiply(ca, -SQRT2, out=term)
 
         # Ratio: (sz - 2*sa*ca) / (2*sqrt(2)*sa^3)
-        sa3 = sa * sa * sa
 
         # Calculate numerator in ratio buffer to save memory
         # num = sz - 2 * sa * ca
@@ -105,11 +110,17 @@ def _compute_term_ratio(z, term_out=None, ratio_out=None):
         np.multiply(ratio, -2.0, out=ratio)
         np.add(ratio, sz, out=ratio)
 
-        # Calculate denominator
-        den = 2 * SQRT2 * sa3
+        # Calculate denominator: 2 * SQRT2 * sa^3
+        # Optimization: Reuse sz buffer for denominator (sz is not needed after numerator addition)
+        # sz = sa^2
+        np.multiply(sa, sa, out=sz)
+        # sz = sa^3
+        np.multiply(sz, sa, out=sz)
+        # sz = 2*sqrt(2)*sa^3
+        np.multiply(sz, 2 * SQRT2, out=sz)
 
         # Final division
-        np.divide(ratio, den, out=ratio)
+        np.divide(ratio, sz, out=ratio)
 
         return term, ratio
 
@@ -119,14 +130,21 @@ def _compute_term_ratio(z, term_out=None, ratio_out=None):
         zn = -z # Allocate temp array (unavoidable for sqrt(-z))
         sz = np.sqrt(zn)
         sz_2 = sz * 0.5
-        sa = np.sinh(sz_2)
-        ca = np.cosh(sz_2)
+
+        # Optimization: Reuse buffers to minimize allocations
+
+        # Reuse zn for sa: sa = sinh(sz_2)
+        np.sinh(sz_2, out=zn)
+        sa = zn
+
+        # Reuse sz_2 for ca: ca = cosh(sz_2)
+        np.cosh(sz_2, out=sz_2)
+        ca = sz_2
 
         # Term: -sqrt(2) * cosh(sqrt(-z)/2)
         np.multiply(ca, -SQRT2, out=term)
 
         # Ratio: (2*sa*ca - sz) / (2*sqrt(2)*sa^3)
-        sa3 = sa * sa * sa
 
         # Calculate numerator in ratio buffer
         # num = 2 * sa * ca - sz
@@ -134,11 +152,18 @@ def _compute_term_ratio(z, term_out=None, ratio_out=None):
         np.multiply(ratio, 2.0, out=ratio)
         np.subtract(ratio, sz, out=ratio)
 
-        # Calculate denominator
-        den = 2 * SQRT2 * sa3
+        # Calculate denominator: 2 * SQRT2 * sa^3
+        # Optimization: Reuse sz for denominator (sz is not needed after subtract)
+
+        # sz = sa^2
+        np.multiply(sa, sa, out=sz)
+        # sz = sa^3
+        np.multiply(sz, sa, out=sz)
+        # sz = 2*sqrt(2)*sa^3
+        np.multiply(sz, 2 * SQRT2, out=sz)
 
         # Final division
-        np.divide(ratio, den, out=ratio)
+        np.divide(ratio, sz, out=ratio)
 
         return term, ratio
 
