@@ -1,6 +1,13 @@
 import sys
 import time
 import threading
+import os
+
+def make_hyperlink(text, target):
+    """
+    Creates an OSC 8 ANSI escape sequence for a hyperlink.
+    """
+    return f"\033]8;;{target}\033\\{text}\033]8;;\033\\"
 
 class Style:
     """ANSI escape codes for styling CLI output."""
@@ -165,7 +172,8 @@ class Spinner:
         spinner_chars = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏']
         i = 0
         while not self.stop_event.is_set():
-            sys.stdout.write(f"\r{spinner_chars[i]} {self.message}...")
+            elapsed = time.time() - self.start_time
+            sys.stdout.write(f"\r{spinner_chars[i]} {self.message}... ({elapsed:.1f}s)")
             sys.stdout.flush()
             time.sleep(self.delay)
             i = (i + 1) % len(spinner_chars)
