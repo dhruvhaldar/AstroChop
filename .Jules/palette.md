@@ -51,3 +51,7 @@
 ## 2026-02-15 - [Data Density]
 **Learning:** Standard rotated date labels (e.g., "YYYY-MM-DD") on axes create visual clutter and redundancy, forcing users to tilt their heads.
 **Action:** Use `matplotlib.dates.ConciseDateFormatter` to automatically strip redundant information (like Years) and align text horizontally, significantly improving the data-ink ratio.
+
+## 2026-03-05 - [CLI Consistency]
+**Learning:** Mixing raw numbers (e.g., "30 to 500 days") with formatted durations (e.g., "1 month, 1 day") in the same CLI output creates cognitive dissonance.
+**Action:** Apply consistent `format_duration` helpers to all time-based estimates, even ranges, to maintain a professional and human-readable standard.

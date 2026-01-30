@@ -27,7 +27,7 @@ def main():
     # Estimate Flight Time Range
     min_tof = (start_arrival - end_launch).days
     max_tof = (end_arrival - start_launch).days
-    print(f"⏳ Flight Time:    ~{min_tof} to ~{max_tof} days")
+    print(f"⏳ Flight Time:    ~{format_duration(min_tof)} to ~{format_duration(max_tof)}")
 
     # Generate dates
     launch_dates = [start_launch + timedelta(days=i) for i in range(0, (end_launch - start_launch).days, 5)]
