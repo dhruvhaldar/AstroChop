@@ -29,3 +29,7 @@
 ## 2025-02-24 - Buffer Reuse in Hot Loops
 **Learning:** Allocating arrays inside a hot loop (like `term` and `ratio` in `lambert` solver) causes significant overhead. By preallocating buffers and passing them down, we reduced execution time by ~22%.
 **Action:** Identify large temporary arrays allocated in loops. Preallocate them outside and pass slices (e.g., `buffer[:n]`) to inner functions. BEWARE of aliasing! When reusing a buffer for multiple purposes (like `ratio` reused for `t_val`), ensure you don't overwrite data you still need to read.
+
+## 2025-02-24 - Boolean Mask Allocation
+**Learning:** Even boolean mask operations like `is_small = ~(large_pos | large_neg)` create multiple temporary arrays. In hot loops, this adds up. Using in-place logic `np.logical_or(large_pos, large_neg, out=large_pos)` followed by `np.logical_not` reduced allocation overhead in the mixed regime.
+**Action:** Reuse existing boolean buffers for logical operations when the original data is no longer needed.
