@@ -21,8 +21,8 @@ def main():
     launch_days = (end_launch - start_launch).days
     arrival_days = (end_arrival - start_arrival).days
     
-    print(f"📅 Launch Window:  {start_launch.strftime('%Y-%m-%d')} to {end_launch.strftime('%Y-%m-%d')} ({launch_days} days)")
-    print(f"📅 Arrival Window: {start_arrival.strftime('%Y-%m-%d')} to {end_arrival.strftime('%Y-%m-%d')} ({arrival_days} days)")
+    print(f"📅 Launch Window:  {start_launch.strftime('%Y-%m-%d (%a)')} to {end_launch.strftime('%Y-%m-%d (%a)')} ({launch_days} days)")
+    print(f"📅 Arrival Window: {start_arrival.strftime('%Y-%m-%d (%a)')} to {end_arrival.strftime('%Y-%m-%d (%a)')} ({arrival_days} days)")
 
     # Estimate Flight Time Range
     min_tof = (start_arrival - end_launch).days
