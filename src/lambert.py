@@ -226,7 +226,11 @@ def _compute_term_ratio(z, term_out=None, ratio_out=None):
         ratio[large_neg] = (2 * sa * ca - sz) / (2 * SQRT2 * sa3)
 
     # 3. Small Regime (|z| < 0.1)
-    is_small = ~(large_pos | large_neg)
+    # Optimization: Reuse large_pos buffer to compute is_small to avoid allocations
+    # is_small = ~(large_pos | large_neg)
+    np.logical_or(large_pos, large_neg, out=large_pos)
+    np.logical_not(large_pos, out=large_pos)
+    is_small = large_pos
 
     if np.any(is_small):
         zs = z[is_small]
