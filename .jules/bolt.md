@@ -33,3 +33,7 @@
 ## 2025-02-24 - Boolean Mask Allocation
 **Learning:** Even boolean mask operations like `is_small = ~(large_pos | large_neg)` create multiple temporary arrays. In hot loops, this adds up. Using in-place logic `np.logical_or(large_pos, large_neg, out=large_pos)` followed by `np.logical_not` reduced allocation overhead in the mixed regime.
 **Action:** Reuse existing boolean buffers for logical operations when the original data is no longer needed.
+
+## 2025-02-24 - In-Place Broadcasting for Memory Efficiency
+**Learning:** Calculating large difference arrays like `dv = v1 - v2` allocates a new array of the same size. For large grids (e.g., 4M points x 3 doubles), this allocation (~96MB) can be the bottleneck. NumPy's in-place `v1 -= v2` handles broadcasting correctly (e.g., `(M,N,3) -= (1,N,3)`) and avoids the allocation entirely.
+**Action:** When computing differences where one operand is no longer needed (like intermediate velocity vectors), use in-place operators (`-=`, `+=`) to save memory allocation overhead.
