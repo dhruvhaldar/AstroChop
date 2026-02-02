@@ -145,5 +145,36 @@ class TestUXPlotter(unittest.TestCase):
 
         self.assertTrue(found_semantic_rating, "Annotation should contain semantic ratings '(Excellent)' and '(Good)'")
 
+    def test_duration_format_human_readable(self):
+        """Test that the duration is formatted nicely (e.g. 'X months, Y days')."""
+        # Setup: 200 days -> ~6.6 months
+        # We assume format_duration logic: 200 days -> "6 months, 17 days" (approx)
+        # We will check if the annotation contains the expanded format rather than just "(6.6 mo)"
+        opt_transfer_5 = (datetime(2025, 1, 1), datetime(2025, 7, 20), 10.0, 200, 3.5)
+
+        plot_porkchop(
+            self.launch_dates,
+            self.arrival_dates,
+            self.C3,
+            self.TOF,
+            filename=self.filename,
+            optimal_transfer=opt_transfer_5
+        )
+
+        ax = plt.gca()
+
+        found_human_readable = False
+        for child in ax.texts:
+            text = child.get_text()
+            if "TOF: 200 days" in text:
+                # Check for "months" and "days" inside the parenthesis
+                # e.g. "(6 months, 17 days)"
+                # We relax the check to just "months" to ensure we moved away from "mo"
+                if "months" in text or "month" in text:
+                    found_human_readable = True
+                    break
+
+        self.assertTrue(found_human_readable, "Annotation should use human-readable duration format (e.g., '6 months, 17 days') instead of abbreviated 'mo'")
+
 if __name__ == '__main__':
     unittest.main()
