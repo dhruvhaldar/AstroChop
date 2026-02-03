@@ -6,7 +6,7 @@ from matplotlib.lines import Line2D
 from datetime import datetime, timedelta
 from lambert import lambert
 from ephemeris import get_ephemeris, MU_SUN
-from cli_utils import get_c3_rating, get_vinf_rating
+from cli_utils import get_c3_rating, get_vinf_rating, format_duration
 
 MAX_GRID_SIZE = 4_000_000  # Protection against Memory Exhaustion (DoS) - Reduced to ~600MB peak usage
 
@@ -239,7 +239,7 @@ def plot_porkchop(launch_dates, arrival_dates, C3, TOF, filename='astrochop.png'
             _, c3_desc = get_c3_rating(opt_c3)
             _, vinf_desc = get_vinf_rating(opt_vinf)
 
-            label_text = f"$C_3$: {opt_c3:.1f} km$^2$/s$^2$ {c3_desc}\nDep $V_\\infty$: {dep_vinf:.2f} km/s\nArr $V_\\infty$: {opt_vinf:.2f} km/s {vinf_desc}\nTOF: {opt_tof:.0f} days ({opt_tof/30.44:.1f} mo)"
+            label_text = f"$C_3$: {opt_c3:.1f} km$^2$/s$^2$ {c3_desc}\nDep $V_\\infty$: {dep_vinf:.2f} km/s\nArr $V_\\infty$: {opt_vinf:.2f} km/s {vinf_desc}\nTOF: {opt_tof:.0f} days ({format_duration(opt_tof)})"
         elif len(optimal_transfer) == 4:
             opt_launch, opt_arrival, opt_c3, opt_tof = optimal_transfer
             dep_vinf = np.sqrt(opt_c3)
@@ -247,7 +247,7 @@ def plot_porkchop(launch_dates, arrival_dates, C3, TOF, filename='astrochop.png'
             # Palette UX: Add semantic quality ratings to annotation
             _, c3_desc = get_c3_rating(opt_c3)
 
-            label_text = f"$C_3$: {opt_c3:.1f} km$^2$/s$^2$ {c3_desc}\nDep $V_\\infty$: {dep_vinf:.2f} km/s\nTOF: {opt_tof:.0f} days ({opt_tof/30.44:.1f} mo)"
+            label_text = f"$C_3$: {opt_c3:.1f} km$^2$/s$^2$ {c3_desc}\nDep $V_\\infty$: {dep_vinf:.2f} km/s\nTOF: {opt_tof:.0f} days ({format_duration(opt_tof)})"
         else:
             opt_launch, opt_arrival = optimal_transfer
             label_text = None
