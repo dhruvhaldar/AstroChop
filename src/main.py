@@ -21,13 +21,13 @@ def main():
     launch_days = (end_launch - start_launch).days
     arrival_days = (end_arrival - start_arrival).days
     
-    print(f"📅 Launch Window:  {start_launch.strftime('%Y-%m-%d (%a)')} to {end_launch.strftime('%Y-%m-%d (%a)')} ({launch_days} days)")
-    print(f"📅 Arrival Window: {start_arrival.strftime('%Y-%m-%d (%a)')} to {end_arrival.strftime('%Y-%m-%d (%a)')} ({arrival_days} days)")
+    print(f"📅 Launch Window:  {start_launch.strftime('%Y-%m-%d (%a)')} to {end_launch.strftime('%Y-%m-%d (%a)')} ({format_duration(launch_days)} / {launch_days} days)")
+    print(f"📅 Arrival Window: {start_arrival.strftime('%Y-%m-%d (%a)')} to {end_arrival.strftime('%Y-%m-%d (%a)')} ({format_duration(arrival_days)} / {arrival_days} days)")
 
     # Estimate Flight Time Range
     min_tof = (start_arrival - end_launch).days
     max_tof = (end_arrival - start_launch).days
-    print(f"⏳ Flight Time:    ~{min_tof} to ~{max_tof} days")
+    print(f"⏳ Flight Time:    ~{format_duration(min_tof)} to ~{format_duration(max_tof)}")
 
     # Generate dates
     launch_dates = [start_launch + timedelta(days=i) for i in range(0, (end_launch - start_launch).days, 5)]
