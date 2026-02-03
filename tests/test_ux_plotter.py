@@ -139,11 +139,12 @@ class TestUXPlotter(unittest.TestCase):
         for child in ax.texts:
             text = child.get_text()
             # We expect the annotation to contain "(Excellent)" and "(Good)"
-            if "(Excellent)" in text and "(Good)" in text:
+            # And also the formatted duration (100 days -> "3 mo, 9 d")
+            if "(Excellent)" in text and "(Good)" in text and "3 mo, 9 d" in text:
                 found_semantic_rating = True
                 break
 
-        self.assertTrue(found_semantic_rating, "Annotation should contain semantic ratings '(Excellent)' and '(Good)'")
+        self.assertTrue(found_semantic_rating, "Annotation should contain semantic ratings and formatted duration")
 
 if __name__ == '__main__':
     unittest.main()

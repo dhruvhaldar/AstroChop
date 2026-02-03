@@ -6,17 +6,23 @@ class TestCliUx(unittest.TestCase):
         # Less than 30 days -> just days
         self.assertEqual(format_duration(5.5), "5.5 days")
         self.assertEqual(format_duration(29.0), "29.0 days")
+        # Short format
+        self.assertEqual(format_duration(5.5, short=True), "5.5 d")
 
     def test_format_duration_months(self):
         # Approx 30.44 days per month
         # 45 days -> ~1.5 months -> "1 month, 15 days"
         self.assertEqual(format_duration(45), "1 month, 15 days")
         self.assertEqual(format_duration(65), "2 months, 4 days")
+        # Short format
+        self.assertEqual(format_duration(45, short=True), "1 mo, 15 d")
 
     def test_format_duration_years(self):
         # > 365 days
         self.assertEqual(format_duration(400), "1 year, 1 month")
         self.assertEqual(format_duration(750), "2 years, 1 month")
+        # Short format
+        self.assertEqual(format_duration(400, short=True), "1 yr, 1 mo")
 
     def test_get_c3_color(self):
         # Excellent < 15

@@ -51,3 +51,7 @@
 ## 2026-02-15 - [Data Density]
 **Learning:** Standard rotated date labels (e.g., "YYYY-MM-DD") on axes create visual clutter and redundancy, forcing users to tilt their heads.
 **Action:** Use `matplotlib.dates.ConciseDateFormatter` to automatically strip redundant information (like Years) and align text horizontally, significantly improving the data-ink ratio.
+
+## 2026-02-18 - [Consistent Formatting]
+**Learning:** Inconsistent formatting between CLI logs (e.g., "1 year, 2 months") and generated artifacts (e.g., "14.2 mo") creates mental friction and reduces polish.
+**Action:** Centralize formatting logic in a shared utility and expose options (like `short=True`) to adapt to different constraints (screen vs. plot) while maintaining a consistent "voice".
