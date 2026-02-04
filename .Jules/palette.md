@@ -55,3 +55,7 @@
 ## 2026-02-20 - [Consistency]
 **Learning:** Using different formatting logic for the same metric (Duration) in CLI vs Plot confuses users.
 **Action:** Share formatting utility functions (like `format_duration`) across both layers.
+
+## 2026-02-21 - [Data Visualization]
+**Learning:** Plot annotations are spatially constrained compared to CLI output. "Verbose" formats (e.g., "1 year") clutter the visual field.
+**Action:** Implement "compact" modes (e.g., "1 yr") in shared formatting utilities specifically for data-dense visualizations.

@@ -46,3 +46,15 @@ class TestCliUx(unittest.TestCase):
         self.assertEqual(get_vinf_rating(5.5), (Style.YELLOW, "(Acceptable)"))
         # > 6.0 High
         self.assertEqual(get_vinf_rating(7.0), (Style.RED, "(High)"))
+
+    def test_format_duration_short(self):
+        # Days only
+        self.assertEqual(format_duration(25.0, short=True), "25.0 d")
+
+        # Months and days
+        self.assertEqual(format_duration(45, short=True), "1 mo, 15 d")
+        self.assertEqual(format_duration(65, short=True), "2 mo, 4 d")
+
+        # Years
+        self.assertEqual(format_duration(400, short=True), "1 yr, 1 mo")
+        self.assertEqual(format_duration(750, short=True), "2 yr, 1 mo")
