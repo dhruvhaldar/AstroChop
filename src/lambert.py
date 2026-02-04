@@ -78,14 +78,15 @@ def _compute_term_ratio(z, term_out=None, ratio_out=None):
     if z.size == 0:
         return term, ratio
 
-    # Optimization: Check for pure regimes using min/max to avoid boolean array allocation.
-    # This is highly effective because z0=0 (All Small) and z1=1 (All Pos)
-    # are the initial guesses for 100% of calculations.
-    min_z = np.min(z)
-    max_z = np.max(z)
+    # Optimization: Replaced min/max checks (2 data passes) with mask generation (1 pass per mask)
+    # + boolean reduction (fast).
+    # This avoids redundant data traversals in the mixed regime (most common in iterations 3+)
+    # while maintaining performance for pure regimes (initial guesses).
+
+    large_pos = z >= 0.1
 
     # 1. All Large Positive
-    if min_z >= 0.1:
+    if large_pos.all():
         # z is guaranteed positive
         zp = z
         sz = np.sqrt(zp)
@@ -113,8 +114,10 @@ def _compute_term_ratio(z, term_out=None, ratio_out=None):
 
         return term, ratio
 
+    large_neg = z <= -0.1
+
     # 2. All Large Negative
-    if max_z <= -0.1:
+    if large_neg.all():
         # z is guaranteed negative
         zn = -z # Allocate temp array (unavoidable for sqrt(-z))
         sz = np.sqrt(zn)
@@ -142,8 +145,12 @@ def _compute_term_ratio(z, term_out=None, ratio_out=None):
 
         return term, ratio
 
+    # Check for presence of large values to determine if Pure Small
+    has_pos = large_pos.any()
+    has_neg = large_neg.any()
+
     # 3. All Small
-    if min_z > -0.1 and max_z < 0.1:
+    if not has_pos and not has_neg:
         zs = z
 
         # RATIO SERIES
@@ -194,9 +201,8 @@ def _compute_term_ratio(z, term_out=None, ratio_out=None):
 
         return term, ratio
 
-    # Mixed Regime (Original Masked Implementation)
-    large_pos = z >= 0.1
-    if np.any(large_pos):
+    # Mixed Regime (Masks reused)
+    if has_pos:
         zp = z[large_pos]
         sz = np.sqrt(zp)
         sz_2 = sz * 0.5
@@ -210,8 +216,7 @@ def _compute_term_ratio(z, term_out=None, ratio_out=None):
         sa3 = sa * sa * sa
         ratio[large_pos] = (sz - 2 * sa * ca) / (2 * SQRT2 * sa3)
 
-    large_neg = z <= -0.1
-    if np.any(large_neg):
+    if has_neg:
         zn = -z[large_neg]
         sz = np.sqrt(zn)
         sz_2 = sz * 0.5

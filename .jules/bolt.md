@@ -33,3 +33,7 @@
 ## 2025-02-24 - Boolean Mask Allocation
 **Learning:** Even boolean mask operations like `is_small = ~(large_pos | large_neg)` create multiple temporary arrays. In hot loops, this adds up. Using in-place logic `np.logical_or(large_pos, large_neg, out=large_pos)` followed by `np.logical_not` reduced allocation overhead in the mixed regime.
 **Action:** Reuse existing boolean buffers for logical operations when the original data is no longer needed.
+
+## 2025-02-25 - Efficient Regime Detection
+**Learning:** In the Lambert solver, detecting pure regimes using `np.min` and `np.max` required 2 full data passes, which became a bottleneck in the "Mixed" regime (iterations 3+). Replacing this with boolean mask generation (`z >= 0.1`) and boolean reductions (`.all()`, `.any()`) reduced data traversals in the mixed case while maintaining speed for pure cases. This yielded a ~5% speedup in the mixed regime.
+**Action:** When categorizing large arrays into regimes, prioritize logic that minimizes total passes over the data, especially for the most common case. Allocating boolean masks (1 pass + overhead) can be cheaper than `min`/`max` (2 passes) if those masks are subsequently reused for calculation.
