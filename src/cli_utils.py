@@ -17,17 +17,22 @@ class Style:
     RED = '\033[91m'
     YELLOW = '\033[93m'
 
-def format_duration(days):
+def format_duration(days, short=False):
     """
     Formats a duration in days into a human-friendly string.
 
+    Args:
+        days (float): Duration in days.
+        short (bool): If True, uses abbreviated units (d, mo, yr).
+
     Examples:
-        25.0 -> "25.0 days"
-        45.0 -> "1 month, 15 days"
-        400.0 -> "1 year, 1 month"
+        25.0 -> "25.0 days" (short: "25.0 d")
+        45.0 -> "1 month, 15 days" (short: "1 mo, 15 d")
+        400.0 -> "1 year, 1 month" (short: "1 yr, 1 mo")
     """
     if days < 30:
-        return f"{days:.1f} days"
+        unit = "d" if short else "days"
+        return f"{days:.1f} {unit}"
 
     # Approx constants
     DAYS_PER_YEAR = 365.25
@@ -43,8 +48,12 @@ def format_duration(days):
             years += 1
             months = 0
 
-        y_str = "year" if years == 1 else "years"
-        m_str = "month" if months == 1 else "months"
+        if short:
+            y_str = "yr"
+            m_str = "mo"
+        else:
+            y_str = "year" if years == 1 else "years"
+            m_str = "month" if months == 1 else "months"
 
         if months == 0:
             return f"{years} {y_str}"
@@ -60,8 +69,12 @@ def format_duration(days):
              months += 1
              remaining_days = 0
 
-        m_str = "month" if months == 1 else "months"
-        d_str = "day" if remaining_days == 1 else "days"
+        if short:
+            m_str = "mo"
+            d_str = "d"
+        else:
+            m_str = "month" if months == 1 else "months"
+            d_str = "day" if remaining_days == 1 else "days"
 
         if remaining_days == 0:
             return f"{months} {m_str}"
