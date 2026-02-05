@@ -4,7 +4,7 @@ from plotter import generate_porkchop, plot_porkchop, jd_from_date
 from porkchop_mesh import DataGrid, PorkchopMesh
 from mesh_exporter import write_vtp
 from pathlib import Path
-from cli_utils import Style, Spinner, format_duration, get_c3_rating, get_vinf_rating, make_hyperlink
+from cli_utils import Style, Spinner, format_duration, get_c3_rating, get_vinf_rating, make_hyperlink, format_date_with_doy
 
 def main():
     print("\n🎨 Earth-Mars Porkchop Plot Generator")
@@ -21,8 +21,8 @@ def main():
     launch_days = (end_launch - start_launch).days
     arrival_days = (end_arrival - start_arrival).days
     
-    print(f"📅 Launch Window:  {start_launch.strftime('%Y-%m-%d (%a)')} to {end_launch.strftime('%Y-%m-%d (%a)')} ({format_duration(launch_days)} / {launch_days} days)")
-    print(f"📅 Arrival Window: {start_arrival.strftime('%Y-%m-%d (%a)')} to {end_arrival.strftime('%Y-%m-%d (%a)')} ({format_duration(arrival_days)} / {arrival_days} days)")
+    print(f"📅 Launch Window:  {format_date_with_doy(start_launch)} to {format_date_with_doy(end_launch)} ({format_duration(launch_days)} / {launch_days} days)")
+    print(f"📅 Arrival Window: {format_date_with_doy(start_arrival)} to {format_date_with_doy(end_arrival)} ({format_duration(arrival_days)} / {arrival_days} days)")
 
     # Estimate Flight Time Range
     min_tof = (start_arrival - end_launch).days

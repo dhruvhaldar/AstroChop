@@ -9,6 +9,14 @@ def make_hyperlink(text, target):
     """
     return f"\033]8;;{target}\033\\{text}\033]8;;\033\\"
 
+def format_date_with_doy(date):
+    """
+    Formats a date string with weekday and Day of Year (DOY).
+    Format: YYYY-MM-DD (Mon, DOY 123)
+    """
+    doy = date.timetuple().tm_yday
+    return f"{date.strftime('%Y-%m-%d (%a')}, DOY {doy})"
+
 class Style:
     """ANSI escape codes for styling CLI output."""
     BOLD = '\033[1m'
