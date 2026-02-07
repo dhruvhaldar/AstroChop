@@ -8,6 +8,8 @@
 
 Loosely based on [Gravity Engine](https://nbodyphysics.com/blog/gravity-engine-doc-1-3-2-2-2/demonstrations-2/porkchop-plots-visualize-transfer-delta-v/)
 
+![AstroChop Porkchop Plot](astrochop.png)
+
 ## Features
 
 - **Lambert Solver**: Implements a Universal Variables Lambert solver to calculate transfer orbits.
